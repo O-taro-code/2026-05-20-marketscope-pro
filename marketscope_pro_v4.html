@@ -358,9 +358,9 @@ input[type=range]{
     <div class="legend-box">
       <div class="leg-title">スコア凡例</div>
       <div class="leg-item"><div class="leg-dot" style="background:#e85d26"></div><div class="leg-label">80以上（優良）</div></div>
-      <div class="leg-item"><div class="leg-dot" style="background:#f0a500"></div><div class="leg-label">60〜79（良好）</div></div>
-      <div class="leg-item"><div class="leg-dot" style="background:#1a4fa0"></div><div class="leg-label">40〜59（普通）</div></div>
-      <div class="leg-item"><div class="leg-dot" style="background:#6a6a70"></div><div class="leg-label">39以下（要注意）</div></div>
+      <div class="leg-item"><div class="leg-dot" style="background:#f0a500"></div><div class="leg-label">65〜79（良好）</div></div>
+      <div class="leg-item"><div class="leg-dot" style="background:#1a4fa0"></div><div class="leg-label">50〜64（普通）</div></div>
+      <div class="leg-item"><div class="leg-dot" style="background:#6a6a70"></div><div class="leg-label">49以下（要注意）</div></div>
     </div>
   </div>
 
@@ -436,10 +436,10 @@ const CATEGORIES = [
   {
     id:'competition', label:'競合の質', color:'#c0392b',
     items:[
-      {id:'rival_count',  label:'競合の少なさ',          unit:'',     isNew:false},
-      {id:'rival_review', label:'競合Googleレビュー数',  unit:'件',   isNew:true},
-      {id:'rival_score',  label:'競合平均評価スコア',    unit:'点',   isNew:true},
-      {id:'chain_ratio',  label:'チェーン店比率（低い方が良）', unit:'%', isNew:true},
+      {id:'rival_count',  label:'競合店舗数（低い方が良）',              unit:'店', isNew:false},
+      {id:'rival_review', label:'競合Googleレビュー数（低=好機）',       unit:'件', isNew:true},
+      {id:'rival_score',  label:'競合平均評価スコア（低=好機）',         unit:'点', isNew:true},
+      {id:'chain_ratio',  label:'チェーン店比率（低い方が良）',          unit:'%',  isNew:true},
     ]
   },
   {
@@ -455,7 +455,7 @@ const CATEGORIES = [
     items:[
       {id:'pop_trend',  label:'人口増加率（5年）', unit:'%',    isNew:true},
       {id:'mansion',    label:'新築マンション着工', unit:'件/年', isNew:true},
-      {id:'open_close', label:'開廃業比率',       unit:'',      isNew:true},
+      {id:'open_close', label:'開廃業比率',       unit:'倍',    isNew:true},
       {id:'female2040', label:'20〜40代女性比率', unit:'%',     isNew:false},
       {id:'solo',       label:'単身世帯比率',     unit:'%',     isNew:false},
       {id:'child',      label:'子育て世帯比率',   unit:'%',     isNew:false},
@@ -499,59 +499,83 @@ const PRESETS = {
     pop_trend:70, mansion:80, open_close:50, female2040:40, solo:30, child:95, elder:30},
 };
 
-// ダミーエリアデータ（大阪中心部）
+// エリアデータ（大阪中心部・2025年推計）
+// rival_count: 各ジャンルの平均的な競合店舗数（実数）
 const AREAS = [
   {id:'a1', name:'梅田・北新地', lat:34.7055, lng:135.4983,
    data:{pop:28, night:12, day:45, income:520, office:38, tourist:210,
-         rival_count:30, rival_review:380, rival_score:3.4, chain_ratio:62,
+         rival_count:95, rival_review:380, rival_score:3.4, chain_ratio:62,
          rent:8.2, vacancy:8, station:82,
          pop_trend:3.2, mansion:240, open_close:1.4, female2040:34, solo:52, child:12, elder:18}},
   {id:'a2', name:'難波・心斎橋', lat:34.6683, lng:135.5023,
    data:{pop:22, night:18, day:55, income:460, office:22, tourist:580,
-         rival_count:20, rival_review:520, rival_score:3.6, chain_ratio:71,
+         rival_count:120, rival_review:520, rival_score:3.6, chain_ratio:71,
          rent:9.5, vacancy:6, station:75,
          pop_trend:1.8, mansion:180, open_close:1.1, female2040:38, solo:48, child:10, elder:15}},
   {id:'a3', name:'天王寺・阿倍野', lat:34.6466, lng:135.5133,
    data:{pop:18, night:14, day:30, income:440, office:15, tourist:140,
-         rival_count:50, rival_review:220, rival_score:3.8, chain_ratio:48,
+         rival_count:65, rival_review:220, rival_score:3.8, chain_ratio:48,
          rent:5.8, vacancy:12, station:58,
          pop_trend:4.1, mansion:320, open_close:1.6, female2040:40, solo:45, child:18, elder:22}},
   {id:'a4', name:'福島・野田', lat:34.6933, lng:135.4766,
    data:{pop:12, night:10, day:18, income:480, office:10, tourist:40,
-         rival_count:70, rival_review:180, rival_score:4.1, chain_ratio:32,
+         rival_count:30, rival_review:180, rival_score:4.1, chain_ratio:32,
          rent:4.2, vacancy:15, station:30,
          pop_trend:5.8, mansion:410, open_close:1.9, female2040:42, solo:50, child:15, elder:20}},
   {id:'a5', name:'本町・淀屋橋', lat:34.6876, lng:135.5001,
    data:{pop:8, night:4, day:38, income:600, office:55, tourist:60,
-         rival_count:60, rival_review:290, rival_score:3.7, chain_ratio:55,
+         rival_count:45, rival_review:290, rival_score:3.7, chain_ratio:55,
          rent:7.8, vacancy:10, station:65,
          pop_trend:2.5, mansion:150, open_close:1.2, female2040:35, solo:58, child:8, elder:16}},
   {id:'a6', name:'天満・扇町', lat:34.7166, lng:135.5133,
    data:{pop:10, night:9, day:14, income:390, office:8, tourist:25,
-         rival_count:75, rival_review:140, rival_score:4.3, chain_ratio:25,
+         rival_count:22, rival_review:140, rival_score:4.3, chain_ratio:25,
          rent:3.5, vacancy:18, station:22,
          pop_trend:6.5, mansion:380, open_close:2.1, female2040:44, solo:55, child:16, elder:21}},
   {id:'a7', name:'堀江・西心斎橋', lat:34.6700, lng:135.4900,
    data:{pop:9, night:11, day:20, income:510, office:12, tourist:80,
-         rival_count:45, rival_review:310, rival_score:4.0, chain_ratio:38,
+         rival_count:58, rival_review:310, rival_score:4.0, chain_ratio:38,
          rent:5.5, vacancy:11, station:28,
          pop_trend:4.8, mansion:260, open_close:1.7, female2040:48, solo:54, child:12, elder:14}},
   {id:'a8', name:'京橋・天満橋', lat:34.6933, lng:135.5266,
    data:{pop:15, night:12, day:22, income:410, office:18, tourist:50,
-         rival_count:65, rival_review:200, rival_score:3.9, chain_ratio:42,
+         rival_count:38, rival_review:200, rival_score:3.9, chain_ratio:42,
          rent:4.0, vacancy:14, station:45,
          pop_trend:3.6, mansion:290, open_close:1.5, female2040:39, solo:47, child:17, elder:23}},
 ];
 
-// スコア計算方向（high=高いほど良、low=低いほど良）
+// スコア計算方向（high=高いほど良、low=低いほど良、mid=10%前後が最良）
 const SCORE_DIR = {
   pop:'high', night:'high', day:'high', income:'high', office:'high', tourist:'high',
-  rival_count:'high', rival_review:'low', rival_score:'low', chain_ratio:'low',
+  rival_count:'low', rival_review:'low', rival_score:'low', chain_ratio:'low',
   rent:'low', vacancy:'mid', station:'high',
   pop_trend:'high', mansion:'high', open_close:'high',
   female2040:'high', solo:'high', child:'high', elder:'high',
 };
-// vacancyは中程度が最良（10%前後）
+
+// 絶対参照レンジ（エリア追加でスコアが変動しないよう固定）
+const RANGES = {
+  pop:        {min:0,   max:50},
+  night:      {min:0,   max:25},
+  day:        {min:0,   max:70},
+  income:     {min:300, max:800},
+  office:     {min:0,   max:70},
+  tourist:    {min:0,   max:700},
+  rival_count:{min:0,   max:150},
+  rival_review:{min:0,  max:600},
+  rival_score: {min:3.0,max:5.0},
+  chain_ratio: {min:0,  max:100},
+  rent:       {min:2,   max:15},
+  vacancy:    {min:0,   max:30},
+  station:    {min:0,   max:100},
+  pop_trend:  {min:-5,  max:15},
+  mansion:    {min:0,   max:500},
+  open_close: {min:0.5, max:3.0},
+  female2040: {min:20,  max:60},
+  solo:       {min:20,  max:70},
+  child:      {min:5,   max:30},
+  elder:      {min:5,   max:40},
+};
 
 // ============================================================
 // STATE
@@ -567,15 +591,14 @@ let map, markers = {};
 // SCORE CALCULATION
 // ============================================================
 
-// 各エリアの指標を0〜100に正規化
+// 各エリアの指標を0〜100に正規化（絶対レンジ基準・エリア追加で変動しない）
 function normalize(metric, value) {
-  const vals = AREAS.map(a => a.data[metric]);
-  const min = Math.min(...vals), max = Math.max(...vals);
-  if (max === min) return 50;
+  const {min, max} = RANGES[metric];
   const dir = SCORE_DIR[metric];
-  if (dir === 'high') return Math.round((value - min) / (max - min) * 100);
-  if (dir === 'low')  return Math.round((1 - (value - min) / (max - min)) * 100);
-  // mid: best near 10%
+  const clamped = Math.max(min, Math.min(max, value));
+  if (dir === 'high') return Math.round((clamped - min) / (max - min) * 100);
+  if (dir === 'low')  return Math.round((1 - (clamped - min) / (max - min)) * 100);
+  // mid: 空き率10%前後が最良
   if (dir === 'mid')  return Math.round(Math.max(0, 100 - Math.abs(value - 10) * 5));
   return 50;
 }
@@ -613,8 +636,8 @@ function gradeInfo(score) {
 
 function markerColor(score) {
   if (score >= 80) return '#e85d26';
-  if (score >= 60) return '#f0a500';
-  if (score >= 40) return '#1a4fa0';
+  if (score >= 65) return '#f0a500';
+  if (score >= 50) return '#1a4fa0';
   return '#6a6a70';
 }
 
