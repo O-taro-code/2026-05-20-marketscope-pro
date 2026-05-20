@@ -53,7 +53,8 @@ html,body{height:100%;background:var(--paper);font-family:'Noto Sans JP',sans-se
 .gbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}
 
 .hstats{margin-left:auto;display:flex;gap:20px;flex-shrink:0}
-.hstat-v{font-family:'Syne',sans-serif;font-size:19px;font-weight:700;color:#fff;line-height:1}
+.hstat-v{font-family:'Syne',sans-serif;font-size:19px;font-weight:700;color:#fff;line-height:1;cursor:pointer}
+.hstat-v:hover{color:var(--accent)}
 .hstat-l{font-size:9px;color:#6a6a70;margin-top:1px;letter-spacing:.5px}
 
 /* ── LAYOUT ── */
@@ -209,6 +210,13 @@ input[type=range]{
 .ts-bar{height:5px;background:#2a2a30;border-radius:3px;margin-top:10px}
 .ts-bar-fill{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.34,1.56,.64,1)}
 
+/* radar chart */
+.radar-wrap{padding:12px 16px 14px;border-bottom:var(--bd);text-align:center}
+.radar-title{
+  font-family:'Syne',sans-serif;font-size:10px;font-weight:700;
+  letter-spacing:1px;color:var(--ink3);text-transform:uppercase;margin-bottom:8px;
+}
+
 /* dimension scores */
 .dim-section{padding:0 16px 10px;border-bottom:var(--bd)}
 .dim-title{
@@ -251,7 +259,11 @@ input[type=range]{
   transition:background .15s;
 }
 .save-btn:hover{background:var(--accent)}
-.save-count{font-size:10px;color:var(--ink3);text-align:center;margin-top:6px}
+.save-count{
+  font-size:10px;color:var(--ink3);text-align:center;margin-top:6px;
+  cursor:pointer;transition:color .15s;
+}
+.save-count:hover{color:var(--accent)}
 
 /* map overlay */
 .map-search-overlay{
@@ -283,6 +295,73 @@ input[type=range]{
   background:var(--accent);color:#fff;padding:1px 4px;border-radius:2px;margin-left:4px;
   vertical-align:middle;
 }
+
+/* ── SAVED MODAL ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(13,13,15,.65);z-index:1000;
+  display:none;align-items:center;justify-content:center;padding:16px;
+}
+.modal-overlay.open{display:flex}
+.modal-box{
+  background:var(--paper);border-radius:10px;width:680px;max-width:100%;
+  max-height:85vh;display:flex;flex-direction:column;
+  box-shadow:var(--shadow-lg);border:var(--bd2);
+}
+.modal-hd{
+  padding:14px 18px;border-bottom:var(--bd);background:var(--paper2);
+  border-radius:10px 10px 0 0;display:flex;align-items:center;
+  justify-content:space-between;flex-shrink:0;
+}
+.modal-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:800;color:var(--ink)}
+.modal-close{
+  width:30px;height:30px;border:none;background:var(--paper3);border-radius:4px;
+  cursor:pointer;font-size:18px;color:var(--ink3);display:flex;align-items:center;
+  justify-content:center;line-height:1;transition:background .15s;
+}
+.modal-close:hover{background:var(--red);color:#fff}
+.modal-body{overflow-y:auto;flex:1}
+.modal-body::-webkit-scrollbar{width:4px}
+.modal-body::-webkit-scrollbar-thumb{background:var(--paper3);border-radius:2px}
+.modal-footer{
+  padding:12px 18px;border-top:var(--bd);background:var(--paper2);
+  border-radius:0 0 10px 10px;display:flex;gap:8px;
+  justify-content:space-between;align-items:center;flex-shrink:0;
+}
+.modal-footer-left{font-size:11px;color:var(--ink3)}
+.modal-btns{display:flex;gap:8px}
+.modal-empty{padding:48px;text-align:center;color:var(--ink3);font-size:12px}
+.save-item{
+  display:flex;align-items:center;gap:14px;padding:12px 18px;
+  border-bottom:var(--bd);transition:background .1s;
+}
+.save-item:hover{background:var(--paper2)}
+.save-item-score{
+  font-family:'Syne',sans-serif;font-size:24px;font-weight:800;
+  min-width:42px;text-align:center;flex-shrink:0;
+}
+.save-item-body{flex:1;min-width:0}
+.save-item-name{font-size:12px;font-weight:700;color:var(--ink)}
+.save-item-genre{font-size:10px;font-weight:400;color:var(--ink3);margin-left:4px}
+.save-item-meta{font-size:10px;color:var(--ink3);margin-top:3px}
+.save-item-cats{font-size:10px;color:var(--ink3);margin-top:2px}
+.save-del{
+  padding:5px 10px;border:var(--bd2);border-radius:3px;background:transparent;
+  cursor:pointer;font-size:10px;color:var(--ink3);font-family:'Noto Sans JP',sans-serif;
+  transition:all .15s;flex-shrink:0;white-space:nowrap;
+}
+.save-del:hover{border-color:var(--red);color:var(--red);background:#fff5f5}
+.exp-btn{
+  padding:8px 14px;color:#fff;border:none;border-radius:var(--r);
+  cursor:pointer;font-size:11px;font-weight:700;
+  font-family:'Noto Sans JP',sans-serif;transition:opacity .15s;
+}
+.exp-btn:hover{opacity:.82}
+.clear-btn{
+  padding:6px 12px;border:var(--bd2);border-radius:var(--r);background:transparent;
+  cursor:pointer;font-size:11px;color:var(--ink3);font-family:'Noto Sans JP',sans-serif;
+  transition:all .15s;
+}
+.clear-btn:hover{border-color:var(--red);color:var(--red)}
 </style>
 </head>
 <body>
@@ -302,7 +381,7 @@ input[type=range]{
 
   <div class="hstats">
     <div>
-      <div class="hstat-v" id="hSave">0</div>
+      <div class="hstat-v" id="hSave" onclick="openSavedModal()" title="保存一覧を見る">0</div>
       <div class="hstat-l">SAVED</div>
     </div>
     <div>
@@ -321,7 +400,7 @@ input[type=range]{
     <div class="search-area">
       <div class="search-label">エリア検索</div>
       <div class="addr-row">
-        <input class="addr-input" id="addrInput" type="text" placeholder="住所・駅名を入力（例：梅田）">
+        <input class="addr-input" id="addrInput" type="text" placeholder="住所・駅名を入力（例：梅田、渋谷）">
         <button class="addr-btn" onclick="searchAddress()">検索</button>
       </div>
     </div>
@@ -380,9 +459,15 @@ input[type=range]{
         <div class="ts-bar"><div class="ts-bar-fill" id="tsBarFill" style="width:0"></div></div>
       </div>
 
+      <!-- レーダーチャート -->
+      <div class="radar-wrap">
+        <div class="radar-title">4次元バランス</div>
+        <div id="radarChart"></div>
+      </div>
+
       <!-- 4次元スコア -->
       <div class="dim-section">
-        <div class="dim-title">4次元評価</div>
+        <div class="dim-title">スコア内訳</div>
         <div id="dimScores"></div>
       </div>
 
@@ -394,14 +479,34 @@ input[type=range]{
     </div>
 
     <div class="save-wrap">
-      <button class="save-btn" onclick="saveAnalysis()">
+      <button class="save-btn" id="saveBtn" onclick="saveAnalysis()">
         <span>📌</span> この分析を保存
       </button>
-      <div class="save-count" id="saveCount">保存済み: 0件</div>
+      <div class="save-count" id="saveCount" onclick="openSavedModal()">保存済み: 0件</div>
     </div>
   </div>
 
 </div>
+</div>
+
+<!-- SAVED ANALYSES MODAL -->
+<div class="modal-overlay" id="savedModal" onclick="if(event.target===this)closeSavedModal()">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <div class="modal-title">保存済み分析一覧</div>
+      <button class="modal-close" onclick="closeSavedModal()">×</button>
+    </div>
+    <div class="modal-body" id="savedList"></div>
+    <div class="modal-footer">
+      <div class="modal-footer-left">
+        <button class="clear-btn" onclick="clearAllSaves()">すべて削除</button>
+      </div>
+      <div class="modal-btns">
+        <button class="exp-btn" style="background:var(--ink2)" onclick="exportJSON()">JSON</button>
+        <button class="exp-btn" style="background:var(--accent)" onclick="exportCSV()">CSVダウンロード</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -551,7 +656,6 @@ const SCORE_DIR = {
   pop_trend:'high', mansion:'high', open_close:'high',
   female2040:'high', solo:'high', child:'high', elder:'high',
 };
-// vacancyは中程度が最良（10%前後）
 
 // ============================================================
 // STATE
@@ -559,15 +663,15 @@ const SCORE_DIR = {
 let currentGenre = 'cafe';
 let weights = {...PRESETS['cafe']};
 let selectedArea = null;
-let savedCount = 0;
 let catOpen = {demand:true, competition:false, cost:false, growth:false};
 let map, markers = {};
+
+const STORAGE_KEY = 'marketscope_v4_saves';
 
 // ============================================================
 // SCORE CALCULATION
 // ============================================================
 
-// 各エリアの指標を0〜100に正規化
 function normalize(metric, value) {
   const vals = AREAS.map(a => a.data[metric]);
   const min = Math.min(...vals), max = Math.max(...vals);
@@ -575,7 +679,6 @@ function normalize(metric, value) {
   const dir = SCORE_DIR[metric];
   if (dir === 'high') return Math.round((value - min) / (max - min) * 100);
   if (dir === 'low')  return Math.round((1 - (value - min) / (max - min)) * 100);
-  // mid: best near 10%
   if (dir === 'mid')  return Math.round(Math.max(0, 100 - Math.abs(value - 10) * 5));
   return 50;
 }
@@ -591,7 +694,6 @@ function calcScore(area) {
   return weightTotal > 0 ? Math.round(weightedSum / weightTotal * 100) : 0;
 }
 
-// カテゴリ別スコア
 function calcCatScores(area) {
   return CATEGORIES.map(cat => {
     let ws = 0, wt = 0;
@@ -616,6 +718,61 @@ function markerColor(score) {
   if (score >= 60) return '#f0a500';
   if (score >= 40) return '#1a4fa0';
   return '#6a6a70';
+}
+
+// ============================================================
+// RADAR CHART (SVG)
+// ============================================================
+
+function renderRadarChart(catScores) {
+  const S = 196, C = 98, R = 64, LR = R + 20;
+  const n = catScores.length;
+  const angles = catScores.map((_, i) => (i * 2 * Math.PI / n) - Math.PI / 2);
+
+  let svg = '';
+
+  // Background grid rings
+  [25, 50, 75, 100].forEach(lv => {
+    const r = R * lv / 100;
+    const pts = angles.map(a =>
+      `${(C + r * Math.cos(a)).toFixed(2)},${(C + r * Math.sin(a)).toFixed(2)}`
+    ).join(' ');
+    const isOuter = lv === 100;
+    svg += `<polygon points="${pts}" fill="${isOuter ? 'none' : 'rgba(228,227,222,0.4)'}" stroke="#d8d7d2" stroke-width="${isOuter ? 1.5 : 1}"/>`;
+  });
+
+  // Axis lines
+  angles.forEach(a => {
+    const x2 = (C + R * Math.cos(a)).toFixed(2);
+    const y2 = (C + R * Math.sin(a)).toFixed(2);
+    svg += `<line x1="${C}" y1="${C}" x2="${x2}" y2="${y2}" stroke="#d8d7d2" stroke-width="1"/>`;
+  });
+
+  // Data polygon
+  const dataPts = catScores.map(({score}, i) => {
+    const r = R * Math.max(score, 2) / 100;
+    return `${(C + r * Math.cos(angles[i])).toFixed(2)},${(C + r * Math.sin(angles[i])).toFixed(2)}`;
+  }).join(' ');
+  svg += `<polygon points="${dataPts}" fill="rgba(232,93,38,0.18)" stroke="#e85d26" stroke-width="2.5" stroke-linejoin="round"/>`;
+
+  // Data dots + labels
+  catScores.forEach(({cat, score}, i) => {
+    const r = R * Math.max(score, 2) / 100;
+    const dx = (C + r * Math.cos(angles[i])).toFixed(2);
+    const dy = (C + r * Math.sin(angles[i])).toFixed(2);
+    svg += `<circle cx="${dx}" cy="${dy}" r="5" fill="${cat.color}" stroke="#fff" stroke-width="2"/>`;
+
+    const lx = (C + LR * Math.cos(angles[i])).toFixed(2);
+    const ly = (C + LR * Math.sin(angles[i])).toFixed(2);
+    svg += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle"
+      font-size="9" font-family="'Noto Sans JP',sans-serif" font-weight="700"
+      fill="${cat.color}">${cat.label}</text>`;
+  });
+
+  // Center dot
+  svg += `<circle cx="${C}" cy="${C}" r="3" fill="#d8d7d2"/>`;
+
+  return `<svg width="${S}" height="${S}" viewBox="0 0 ${S} ${S}" style="display:block;margin:0 auto">${svg}</svg>`;
 }
 
 // ============================================================
@@ -683,7 +840,6 @@ function renderMap() {
       attribution:'©OpenStreetMap ©CartoDB', maxZoom:19
     }).addTo(map);
   }
-  // clear old markers
   Object.values(markers).forEach(m => m.remove());
   markers = {};
 
@@ -700,7 +856,6 @@ function renderMap() {
         box-shadow:0 3px 10px rgba(0,0,0,.25);
         border:3px solid #fff;
         cursor:pointer;
-        transition:transform .15s;
       ">${score}</div>`,
       iconSize:[42,42], iconAnchor:[21,21]
     });
@@ -749,7 +904,7 @@ function renderRightPanel(areaId) {
   document.getElementById('rpLoc').textContent = `業種: ${GENRES.find(g=>g.id===currentGenre)?.label || '—'}`;
   document.getElementById('rpContent').style.display = 'block';
 
-  // total
+  // total score
   document.getElementById('tsVal').textContent = score;
   document.getElementById('tsGrade').textContent = g.label;
   document.getElementById('tsGrade').style.color = g.color;
@@ -758,7 +913,10 @@ function renderRightPanel(areaId) {
   fill.style.background = g.color;
   setTimeout(() => { fill.style.width = score + '%'; }, 50);
 
-  // 4次元
+  // radar chart
+  document.getElementById('radarChart').innerHTML = renderRadarChart(catScores);
+
+  // 4次元スコア
   const dimWrap = document.getElementById('dimScores');
   dimWrap.innerHTML = catScores.map(({cat, score:cs}) => `
     <div class="dim-item">
@@ -835,7 +993,6 @@ function selectArea(id) {
   document.getElementById('mapHint').style.display = 'none';
   renderRightPanel(id);
   renderRanking();
-  // highlight marker
   Object.entries(markers).forEach(([aid, m]) => {
     const score = calcScore(AREAS.find(a=>a.id===aid));
     const color = aid === id ? '#e85d26' : markerColor(score);
@@ -863,24 +1020,61 @@ function switchPanel(p) {
   document.getElementById('ptR').classList.toggle('on', p==='r');
 }
 
-function updateAll(skipSlider) {
+function updateAll() {
   renderMap();
   renderRanking();
   if (selectedArea) renderRightPanel(selectedArea);
-  // update header top score
   const top = Math.max(...AREAS.map(a => calcScore(a)));
   document.getElementById('hTop').textContent = top;
 }
 
+// ============================================================
+// SAVE / LOCALSTORAGE
+// ============================================================
+
+function loadSaves() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  catch(e) { return []; }
+}
+
+function persistSave(entry) {
+  const saves = loadSaves();
+  saves.unshift(entry);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(saves.slice(0, 100)));
+}
+
+function updateSaveCount() {
+  const n = loadSaves().length;
+  document.getElementById('hSave').textContent = n;
+  document.getElementById('saveCount').textContent =
+    n > 0 ? `保存済み: ${n}件 ▸ 一覧を見る` : '保存済み: 0件';
+}
+
 function saveAnalysis() {
   if (!selectedArea) { alert('エリアを選択してください'); return; }
-  savedCount++;
-  document.getElementById('hSave').textContent = savedCount;
-  document.getElementById('saveCount').textContent = `保存済み: ${savedCount}件`;
   const area = AREAS.find(a => a.id === selectedArea);
-  console.log('SAVED', {genre:currentGenre, area:area.name, score:calcScore(area), weights:{...weights}});
-  const btn = document.querySelector('.save-btn');
-  btn.textContent = '✓ 保存しました';
+  const score = calcScore(area);
+  const catScores = calcCatScores(area);
+  const genreLabel = GENRES.find(g => g.id === currentGenre)?.label || currentGenre;
+
+  const entry = {
+    id: Date.now(),
+    timestamp: new Date().toLocaleString('ja-JP'),
+    genre: currentGenre,
+    genreLabel,
+    areaId: selectedArea,
+    areaName: area.name,
+    score,
+    grade: gradeInfo(score).label,
+    catScores: catScores.map(({cat, score:s}) => ({id:cat.id, label:cat.label, score:s})),
+    weights: {...weights},
+  };
+
+  persistSave(entry);
+  updateSaveCount();
+
+  const btn = document.getElementById('saveBtn');
+  btn.innerHTML = '✓ 保存しました';
   btn.style.background = 'var(--green)';
   setTimeout(() => {
     btn.innerHTML = '<span>📌</span> この分析を保存';
@@ -888,32 +1082,136 @@ function saveAnalysis() {
   }, 1500);
 }
 
+function deleteSave(idx) {
+  const saves = loadSaves();
+  saves.splice(idx, 1);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
+  renderSavedList();
+  updateSaveCount();
+}
+
+function clearAllSaves() {
+  if (!confirm('保存済みの分析をすべて削除しますか？')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  renderSavedList();
+  updateSaveCount();
+}
+
+// ============================================================
+// SAVED MODAL
+// ============================================================
+
+function openSavedModal() {
+  renderSavedList();
+  document.getElementById('savedModal').classList.add('open');
+}
+
+function closeSavedModal() {
+  document.getElementById('savedModal').classList.remove('open');
+}
+
+function renderSavedList() {
+  const saves = loadSaves();
+  const list = document.getElementById('savedList');
+  if (saves.length === 0) {
+    list.innerHTML = '<div class="modal-empty">保存済みの分析はありません<br><span style="font-size:11px">エリアを選択して「この分析を保存」を押してください</span></div>';
+    return;
+  }
+  list.innerHTML = saves.map((s, i) => {
+    const g = gradeInfo(s.score);
+    const cats = (s.catScores || []).map(c => `${c.label} ${c.score}`).join(' / ');
+    return `
+    <div class="save-item">
+      <div class="save-item-score" style="color:${g.color}">${s.score}</div>
+      <div class="save-item-body">
+        <div class="save-item-name">${s.areaName}<span class="save-item-genre">／ ${s.genreLabel}</span></div>
+        <div class="save-item-meta">${s.timestamp} ・ <span style="color:${g.color}">${g.label}</span></div>
+        ${cats ? `<div class="save-item-cats">${cats}</div>` : ''}
+      </div>
+      <button class="save-del" onclick="deleteSave(${i})">削除</button>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+
+function exportCSV() {
+  const saves = loadSaves();
+  if (saves.length === 0) { alert('保存済みデータがありません'); return; }
+  const catLabels = (saves[0].catScores || []).map(c => c.label);
+  const headers = ['日時', '業種', 'エリア', 'スコア', 'グレード', ...catLabels];
+  const rows = saves.map(s => [
+    s.timestamp, s.genreLabel, s.areaName, s.score, s.grade,
+    ...(s.catScores || []).map(c => c.score)
+  ]);
+  const csv = [headers, ...rows]
+    .map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))
+    .join('\n');
+  downloadFile('﻿' + csv, `marketscope_${Date.now()}.csv`, 'text/csv;charset=utf-8');
+}
+
+function exportJSON() {
+  const saves = loadSaves();
+  if (saves.length === 0) { alert('保存済みデータがありません'); return; }
+  downloadFile(JSON.stringify(saves, null, 2), `marketscope_${Date.now()}.json`, 'application/json');
+}
+
+function downloadFile(content, filename, type) {
+  const blob = new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// ADDRESS SEARCH
+// ============================================================
+
 async function searchAddress() {
   const q = document.getElementById('addrInput').value.trim();
   if (!q) return;
+  const hint = document.getElementById('mapHint');
+  hint.textContent = '検索中...';
+  hint.style.display = 'block';
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+' 大阪')}&format=json&limit=1`);
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=jp`;
+    const res = await fetch(url);
     const data = await res.json();
     if (data.length > 0) {
-      const {lat, lon} = data[0];
-      map.setView([parseFloat(lat), parseFloat(lon)], 15);
-      // 最近傍エリアを選択
+      const lat = parseFloat(data[0].lat);
+      const lon = parseFloat(data[0].lon);
+      map.setView([lat, lon], 15);
       let near = null, minD = Infinity;
       AREAS.forEach(a => {
         const d = Math.hypot(a.lat - lat, a.lng - lon);
         if (d < minD) { minD = d; near = a; }
       });
-      if (near) selectArea(near.id);
+      if (near) {
+        selectArea(near.id);
+      } else {
+        hint.textContent = '地図上のエリアをクリックして分析';
+      }
     } else {
-      alert('住所が見つかりませんでした');
+      hint.textContent = '住所が見つかりませんでした';
+      hint.style.display = 'block';
+      setTimeout(() => { hint.style.display = 'none'; }, 3000);
     }
   } catch(e) {
-    alert('検索に失敗しました');
+    hint.textContent = '検索に失敗しました';
+    hint.style.display = 'block';
+    setTimeout(() => { hint.style.display = 'none'; }, 3000);
   }
 }
 
 document.getElementById('addrInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') searchAddress();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeSavedModal();
 });
 
 // ============================================================
@@ -924,6 +1222,7 @@ renderPresets();
 renderSliders();
 renderMap();
 renderRanking();
+updateSaveCount();
 </script>
 </body>
 </html>
