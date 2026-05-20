@@ -1092,6 +1092,7 @@ function selectArea(id) {
   document.getElementById('mapHint').style.display = 'none';
   renderRightPanel(id);
   renderRanking();
+  if (typeof L === 'undefined') return;
   Object.entries(markers).forEach(([aid, m]) => {
     const score = calcScore(AREAS.find(a=>a.id===aid));
     const color = aid === id ? '#e85d26' : markerColor(score);
@@ -1120,7 +1121,7 @@ function switchPanel(p) {
 }
 
 function updateAll() {
-  renderMap();
+  try { renderMap(); } catch(e) { /* Leaflet may not be loaded */ }
   renderRanking();
   if (selectedArea) renderRightPanel(selectedArea);
   const top = Math.max(...AREAS.map(a => calcScore(a)));
@@ -1548,7 +1549,7 @@ async function addNationwideArea() {
   AREAS.push({ id: newId, name: matchKey, lat, lng, data: areaData, source });
   updateAll();
   selectArea(newId);
-  map.setView([lat, lng], 13);
+  if (map) map.setView([lat, lng], 13);
   document.getElementById('cityInput').value = '';
 }
 
@@ -1647,7 +1648,7 @@ function makeEstimatedData(popM) {
 renderGenreTabs();
 renderPresets();
 renderSliders();
-renderMap();
+try { renderMap(); } catch(e) { console.warn('Map init failed (Leaflet not loaded?):', e.message); }
 renderRanking();
 updateSaveCount();
 </script>
