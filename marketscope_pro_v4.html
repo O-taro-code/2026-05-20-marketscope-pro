@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>MarketScope Pro v4</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0d0d0f;
+  --ink2:#3d3d42;
+  --ink3:#7a7a85;
+  --paper:#f7f6f3;
+  --paper2:#eeede9;
+  --paper3:#e4e3de;
+  --accent:#e85d26;
+  --accent2:#f0a500;
+  --green:#1a7f5a;
+  --red:#c0392b;
+  --blue:#1a4fa0;
+  --bd:1px solid #d8d7d2;
+  --bd2:1px solid #c8c7c2;
+  --r:6px;
+  --shadow:0 2px 12px rgba(13,13,15,.08);
+  --shadow-lg:0 8px 32px rgba(13,13,15,.14);
+}
+html,body{height:100%;background:var(--paper);font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--ink);line-height:1.5}
+
+/* ── HEADER ── */
+#hdr{
+  height:52px;display:flex;align-items:center;padding:0 16px;gap:14px;
+  background:var(--ink);border-bottom:2px solid var(--accent);
+  flex-shrink:0;position:relative;z-index:200;
+}
+.logo{
+  font-family:'Syne',sans-serif;font-size:17px;font-weight:800;
+  color:#fff;letter-spacing:-.5px;white-space:nowrap;display:flex;align-items:center;gap:6px;
+}
+.logo-dot{width:8px;height:8px;background:var(--accent);border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.3)}}
+.logo-sub{font-size:10px;font-weight:400;color:#9a9a9f;letter-spacing:.5px;font-family:'Noto Sans JP',sans-serif}
+
+.genre-bar{display:flex;gap:4px;flex-wrap:wrap;margin-left:4px}
+.gbtn{
+  padding:4px 10px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:500;
+  background:transparent;border:1px solid #3a3a40;color:#9a9a9f;
+  transition:all .15s;white-space:nowrap;font-family:'Noto Sans JP',sans-serif;
+}
+.gbtn:hover{border-color:#6a6a70;color:#ccc}
+.gbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+.hstats{margin-left:auto;display:flex;gap:20px;flex-shrink:0}
+.hstat-v{font-family:'Syne',sans-serif;font-size:19px;font-weight:700;color:#fff;line-height:1}
+.hstat-l{font-size:9px;color:#6a6a70;margin-top:1px;letter-spacing:.5px}
+
+/* ── LAYOUT ── */
+#body{flex:1;display:flex;min-height:0;height:calc(100vh - 52px)}
+
+/* ── LEFT PANEL ── */
+#left{
+  width:268px;flex-shrink:0;border-right:var(--bd2);
+  overflow-y:auto;background:var(--paper);display:flex;flex-direction:column;
+}
+#left::-webkit-scrollbar{width:4px}
+#left::-webkit-scrollbar-thumb{background:var(--paper3);border-radius:2px}
+
+/* search area */
+.search-area{padding:12px 14px;border-bottom:var(--bd);background:var(--paper2)}
+.search-label{font-size:10px;font-weight:700;letter-spacing:.8px;color:var(--ink3);margin-bottom:5px;text-transform:uppercase}
+.addr-row{display:flex;gap:6px}
+.addr-input{
+  flex:1;padding:7px 10px;border:var(--bd2);border-radius:var(--r);
+  background:#fff;font-size:12px;font-family:'Noto Sans JP',sans-serif;color:var(--ink);
+  transition:border-color .15s;outline:none;
+}
+.addr-input:focus{border-color:var(--accent)}
+.addr-btn{
+  padding:7px 10px;background:var(--accent);color:#fff;border:none;border-radius:var(--r);
+  cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;
+  font-family:'Noto Sans JP',sans-serif;transition:opacity .15s;
+}
+.addr-btn:hover{opacity:.85}
+
+/* panel tabs */
+.ptabs{display:flex;border-bottom:var(--bd);flex-shrink:0;background:var(--paper2)}
+.ptab{
+  flex:1;padding:9px 0;text-align:center;cursor:pointer;font-size:11px;font-weight:700;
+  color:var(--ink3);border-bottom:2px solid transparent;transition:all .15s;letter-spacing:.3px;
+}
+.ptab.on{color:var(--accent);border-bottom-color:var(--accent);background:var(--paper)}
+
+/* section header */
+.sec-hd{
+  padding:10px 14px 6px;font-family:'Syne',sans-serif;font-size:10px;font-weight:700;
+  letter-spacing:1px;color:var(--ink3);text-transform:uppercase;
+  border-bottom:var(--bd);background:var(--paper2);
+}
+
+/* category group */
+.cat-group{border-bottom:var(--bd)}
+.cat-hd{
+  padding:9px 14px;font-size:11px;font-weight:700;color:var(--ink2);
+  cursor:pointer;display:flex;align-items:center;justify-content:space-between;
+  background:var(--paper);transition:background .1s;
+}
+.cat-hd:hover{background:var(--paper2)}
+.cat-hd-left{display:flex;align-items:center;gap:7px}
+.cat-badge{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+}
+.cat-arrow{font-size:9px;color:var(--ink3);transition:transform .2s}
+.cat-arrow.open{transform:rotate(90deg)}
+.cat-body{display:none;padding:6px 0 10px}
+.cat-body.open{display:block}
+
+/* slider item */
+.sl-item{padding:5px 14px}
+.sl-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.sl-name{font-size:11px;color:var(--ink2)}
+.sl-badge{
+  font-size:9px;padding:1px 5px;border-radius:2px;font-weight:700;
+  background:var(--paper3);color:var(--ink3);
+}
+.sl-badge.new{background:#fff0e8;color:var(--accent)}
+.sl-val{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--ink);min-width:24px;text-align:right}
+.sl-track{position:relative;height:4px;background:var(--paper3);border-radius:2px;cursor:pointer}
+.sl-fill{height:100%;border-radius:2px;background:var(--accent);transition:width .1s}
+input[type=range]{
+  position:absolute;top:-6px;left:0;width:100%;height:16px;
+  opacity:0;cursor:pointer;
+}
+
+/* preset */
+.preset-area{padding:8px 14px;border-bottom:var(--bd)}
+.preset-label{font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--ink3);margin-bottom:5px}
+.preset-btns{display:flex;flex-wrap:wrap;gap:4px}
+.pbtn{
+  padding:3px 8px;border:var(--bd2);border-radius:3px;cursor:pointer;font-size:10px;
+  background:#fff;color:var(--ink2);transition:all .15s;font-family:'Noto Sans JP',sans-serif;
+}
+.pbtn:hover{border-color:var(--accent);color:var(--accent)}
+.pbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* ranking list */
+.rank-list{padding:8px 0}
+.rank-item{
+  display:flex;align-items:center;gap:10px;padding:8px 14px;
+  cursor:pointer;transition:background .1s;border-left:3px solid transparent;
+}
+.rank-item:hover{background:var(--paper2)}
+.rank-item.selected{background:#fff0e8;border-left-color:var(--accent)}
+.rank-num{
+  font-family:'Syne',sans-serif;font-size:14px;font-weight:800;
+  color:var(--paper3);min-width:20px;text-align:center;
+}
+.rank-num.t1{color:var(--accent)}
+.rank-num.t2{color:var(--accent2)}
+.rank-num.t3{color:var(--ink3)}
+.rank-body{flex:1;min-width:0}
+.rank-name{font-size:12px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank-sub{font-size:10px;color:var(--ink3);margin-top:1px}
+.rank-score-wrap{text-align:right;flex-shrink:0}
+.rank-score{
+  font-family:'Syne',sans-serif;font-size:16px;font-weight:800;
+  display:block;
+}
+.score-bar-mini{height:3px;background:var(--paper3);border-radius:2px;margin-top:3px;width:48px}
+.score-bar-mini-fill{height:100%;border-radius:2px;transition:width .3s}
+
+/* ── MAP ── */
+#map-wrap{flex:1;position:relative;min-width:0}
+#map{width:100%;height:100%}
+
+/* ── RIGHT PANEL ── */
+#right{
+  width:292px;flex-shrink:0;border-left:var(--bd2);
+  overflow-y:auto;background:var(--paper);display:flex;flex-direction:column;
+}
+#right::-webkit-scrollbar{width:4px}
+#right::-webkit-scrollbar-thumb{background:var(--paper3);border-radius:2px}
+
+.rpanel-hd{
+  padding:14px 16px 10px;border-bottom:var(--bd);background:var(--paper2);flex-shrink:0;
+}
+.rpanel-title{
+  font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:var(--ink);
+  letter-spacing:-.3px;
+}
+.rpanel-loc{font-size:11px;color:var(--ink3);margin-top:3px}
+
+/* total score */
+.total-score-wrap{
+  margin:14px 16px;padding:16px;background:var(--ink);border-radius:var(--r);
+  text-align:center;position:relative;overflow:hidden;
+}
+.total-score-wrap::before{
+  content:'';position:absolute;top:-20px;right:-20px;
+  width:80px;height:80px;background:var(--accent);opacity:.12;border-radius:50%;
+}
+.ts-label{font-size:10px;font-weight:700;letter-spacing:.8px;color:#6a6a70;text-transform:uppercase}
+.ts-val{
+  font-family:'Syne',sans-serif;font-size:52px;font-weight:800;color:#fff;
+  line-height:1;margin:4px 0 2px;
+}
+.ts-grade{font-size:12px;font-weight:700;letter-spacing:.5px}
+.ts-bar{height:5px;background:#2a2a30;border-radius:3px;margin-top:10px}
+.ts-bar-fill{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.34,1.56,.64,1)}
+
+/* dimension scores */
+.dim-section{padding:0 16px 10px;border-bottom:var(--bd)}
+.dim-title{
+  font-family:'Syne',sans-serif;font-size:10px;font-weight:700;
+  letter-spacing:1px;color:var(--ink3);text-transform:uppercase;margin:12px 0 8px;
+}
+.dim-item{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.dim-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dim-name{font-size:11px;color:var(--ink2);flex:1}
+.dim-bar-wrap{width:70px;height:5px;background:var(--paper3);border-radius:3px;flex-shrink:0}
+.dim-bar-fill{height:100%;border-radius:3px;transition:width .5s}
+.dim-score{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--ink);min-width:26px;text-align:right}
+
+/* indicator detail */
+.ind-section{padding:0 16px 14px}
+.ind-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.ind-card{
+  background:#fff;border:var(--bd);border-radius:var(--r);padding:9px 10px;
+  transition:box-shadow .15s;
+}
+.ind-card:hover{box-shadow:var(--shadow)}
+.ind-card.new-ind{border-color:var(--accent);background:#fff8f5}
+.ind-card-label{font-size:9px;font-weight:700;color:var(--ink3);letter-spacing:.3px;line-height:1.3}
+.ind-card-val{
+  font-family:'Syne',sans-serif;font-size:16px;font-weight:800;color:var(--ink);
+  margin:4px 0 2px;line-height:1;
+}
+.ind-card-bar{height:3px;background:var(--paper3);border-radius:2px}
+.ind-card-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+.ind-new-tag{
+  font-size:8px;font-weight:700;color:var(--accent);letter-spacing:.5px;margin-bottom:2px;
+}
+
+/* save button */
+.save-wrap{padding:14px 16px;border-top:var(--bd);background:var(--paper2);margin-top:auto;flex-shrink:0}
+.save-btn{
+  width:100%;padding:10px;background:var(--ink);color:#fff;border:none;border-radius:var(--r);
+  cursor:pointer;font-size:12px;font-weight:700;font-family:'Noto Sans JP',sans-serif;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:background .15s;
+}
+.save-btn:hover{background:var(--accent)}
+.save-count{font-size:10px;color:var(--ink3);text-align:center;margin-top:6px}
+
+/* map overlay */
+.map-search-overlay{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  background:#fff;border-radius:6px;box-shadow:var(--shadow-lg);
+  padding:10px 14px;font-size:11px;color:var(--ink3);z-index:100;
+  pointer-events:none;border-left:3px solid var(--accent);
+}
+.legend-box{
+  position:absolute;bottom:14px;left:14px;background:#fff;border-radius:6px;
+  box-shadow:var(--shadow-lg);padding:10px 12px;z-index:100;border:var(--bd);
+}
+.leg-title{font-size:9px;font-weight:700;letter-spacing:.8px;color:var(--ink3);margin-bottom:6px;text-transform:uppercase}
+.leg-item{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.leg-dot{width:10px;height:10px;border-radius:50%;border:2px solid rgba(255,255,255,.8)}
+.leg-label{font-size:10px;color:var(--ink2)}
+
+/* tooltip */
+.leaflet-tooltip{
+  background:var(--ink)!important;color:#fff!important;border:none!important;
+  border-radius:4px!important;font-family:'Noto Sans JP',sans-serif!important;
+  font-size:11px!important;padding:5px 9px!important;box-shadow:var(--shadow)!important;
+}
+.leaflet-tooltip::before{border-top-color:var(--ink)!important}
+
+/* tag */
+.new-tag{
+  display:inline-block;font-size:8px;font-weight:700;letter-spacing:.5px;
+  background:var(--accent);color:#fff;padding:1px 4px;border-radius:2px;margin-left:4px;
+  vertical-align:middle;
+}
+</style>
+</head>
+<body>
+<div id="app" style="height:100vh;display:flex;flex-direction:column">
+
+<!-- HEADER -->
+<div id="hdr">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <div>
+      MarketScope <span style="color:var(--accent)">Pro</span>
+      <div class="logo-sub">立地インテリジェンス・プラットフォーム</div>
+    </div>
+  </div>
+
+  <div class="genre-bar" id="genreBar"></div>
+
+  <div class="hstats">
+    <div>
+      <div class="hstat-v" id="hSave">0</div>
+      <div class="hstat-l">SAVED</div>
+    </div>
+    <div>
+      <div class="hstat-v" id="hTop" style="color:var(--accent)">—</div>
+      <div class="hstat-l">TOP SCORE</div>
+    </div>
+  </div>
+</div>
+
+<!-- BODY -->
+<div id="body">
+
+  <!-- LEFT -->
+  <div id="left">
+    <!-- 住所検索 -->
+    <div class="search-area">
+      <div class="search-label">エリア検索</div>
+      <div class="addr-row">
+        <input class="addr-input" id="addrInput" type="text" placeholder="住所・駅名を入力（例：梅田）">
+        <button class="addr-btn" onclick="searchAddress()">検索</button>
+      </div>
+    </div>
+
+    <!-- パネルタブ -->
+    <div class="ptabs">
+      <div class="ptab on" id="ptW" onclick="switchPanel('w')">重みづけ</div>
+      <div class="ptab" id="ptR" onclick="switchPanel('r')">ランキング</div>
+    </div>
+
+    <!-- 重みづけパネル -->
+    <div id="wPanel">
+      <!-- プリセット -->
+      <div class="preset-area">
+        <div class="preset-label">プリセット適用</div>
+        <div class="preset-btns" id="presetBtns"></div>
+      </div>
+
+      <!-- スライダー群 -->
+      <div id="sliderGroups"></div>
+    </div>
+
+    <!-- ランキングパネル -->
+    <div id="rPanel" style="display:none">
+      <div class="sec-hd">スコアランキング</div>
+      <div class="rank-list" id="rankList"></div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div class="map-search-overlay" id="mapHint">地図上のエリアをクリックして分析 / 住所で検索</div>
+    <div class="legend-box">
+      <div class="leg-title">スコア凡例</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#e85d26"></div><div class="leg-label">80以上（優良）</div></div>
+      <div class="leg-item"><div class="leg-dot" style="background:#f0a500"></div><div class="leg-label">60〜79（良好）</div></div>
+      <div class="leg-item"><div class="leg-dot" style="background:#1a4fa0"></div><div class="leg-label">40〜59（普通）</div></div>
+      <div class="leg-item"><div class="leg-dot" style="background:#6a6a70"></div><div class="leg-label">39以下（要注意）</div></div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div id="right">
+    <div class="rpanel-hd">
+      <div class="rpanel-title" id="rpTitle">エリアを選択してください</div>
+      <div class="rpanel-loc" id="rpLoc">地図またはランキングから選択</div>
+    </div>
+
+    <div id="rpContent" style="display:none">
+      <!-- トータルスコア -->
+      <div class="total-score-wrap">
+        <div class="ts-label">TOTAL SCORE</div>
+        <div class="ts-val" id="tsVal">—</div>
+        <div class="ts-grade" id="tsGrade">—</div>
+        <div class="ts-bar"><div class="ts-bar-fill" id="tsBarFill" style="width:0"></div></div>
+      </div>
+
+      <!-- 4次元スコア -->
+      <div class="dim-section">
+        <div class="dim-title">4次元評価</div>
+        <div id="dimScores"></div>
+      </div>
+
+      <!-- 指標詳細 -->
+      <div class="ind-section">
+        <div class="dim-title">指標詳細</div>
+        <div class="ind-grid" id="indGrid"></div>
+      </div>
+    </div>
+
+    <div class="save-wrap">
+      <button class="save-btn" onclick="saveAnalysis()">
+        <span>📌</span> この分析を保存
+      </button>
+      <div class="save-count" id="saveCount">保存済み: 0件</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ============================================================
+// DATA DEFINITIONS
+// ============================================================
+
+const GENRES = [
+  {id:'restaurant', label:'飲食'},
+  {id:'beauty',     label:'美容院'},
+  {id:'clinic',     label:'整骨院'},
+  {id:'cafe',       label:'カフェ'},
+  {id:'fitness',    label:'フィットネス'},
+  {id:'cowork',     label:'コワーキング'},
+  {id:'school',     label:'学習塾'},
+];
+
+// 4カテゴリ × 指標
+const CATEGORIES = [
+  {
+    id:'demand', label:'需要規模', color:'#e85d26',
+    items:[
+      {id:'pop',      label:'商圏人口',         unit:'万人', isNew:false},
+      {id:'night',    label:'夜間人口',          unit:'万人', isNew:false},
+      {id:'day',      label:'昼間人口',          unit:'万人', isNew:false},
+      {id:'income',   label:'平均所得',          unit:'万円', isNew:false},
+      {id:'office',   label:'オフィスビル密度', unit:'棟/km²', isNew:true},
+      {id:'tourist',  label:'観光客数',          unit:'万人/年', isNew:true},
+    ]
+  },
+  {
+    id:'competition', label:'競合の質', color:'#c0392b',
+    items:[
+      {id:'rival_count',  label:'競合の少なさ',          unit:'',     isNew:false},
+      {id:'rival_review', label:'競合Googleレビュー数',  unit:'件',   isNew:true},
+      {id:'rival_score',  label:'競合平均評価スコア',    unit:'点',   isNew:true},
+      {id:'chain_ratio',  label:'チェーン店比率（低い方が良）', unit:'%', isNew:true},
+    ]
+  },
+  {
+    id:'cost', label:'コスト構造', color:'#1a7f5a',
+    items:[
+      {id:'rent',       label:'平均坪単価',      unit:'万円/坪', isNew:true},
+      {id:'vacancy',    label:'空き店舗率',      unit:'%',       isNew:true},
+      {id:'station',    label:'駅乗降客数',      unit:'万人/日', isNew:false},
+    ]
+  },
+  {
+    id:'growth', label:'成長余地', color:'#1a4fa0',
+    items:[
+      {id:'pop_trend',  label:'人口増加率（5年）', unit:'%',    isNew:true},
+      {id:'mansion',    label:'新築マンション着工', unit:'件/年', isNew:true},
+      {id:'open_close', label:'開廃業比率',       unit:'',      isNew:true},
+      {id:'female2040', label:'20〜40代女性比率', unit:'%',     isNew:false},
+      {id:'solo',       label:'単身世帯比率',     unit:'%',     isNew:false},
+      {id:'child',      label:'子育て世帯比率',   unit:'%',     isNew:false},
+      {id:'elder',      label:'高齢者比率',       unit:'%',     isNew:false},
+    ]
+  }
+];
+
+// 全指標フラット
+const ALL_ITEMS = CATEGORIES.flatMap(c => c.items);
+
+// プリセット（各カテゴリの重みを設定）
+const PRESETS = {
+  restaurant: {pop:80, night:90, day:60, income:70, office:40, tourist:60,
+    rival_count:80, rival_review:70, rival_score:80, chain_ratio:60,
+    rent:70, vacancy:50, station:80,
+    pop_trend:50, mansion:30, open_close:60, female2040:60, solo:70, child:30, elder:20},
+  beauty: {pop:60, night:70, day:50, income:80, office:30, tourist:20,
+    rival_count:90, rival_review:80, rival_score:70, chain_ratio:80,
+    rent:80, vacancy:60, station:70,
+    pop_trend:60, mansion:50, open_close:50, female2040:90, solo:70, child:50, elder:30},
+  clinic: {pop:70, night:60, day:50, income:60, office:20, tourist:10,
+    rival_count:90, rival_review:60, rival_score:60, chain_ratio:50,
+    rent:70, vacancy:50, station:60,
+    pop_trend:50, mansion:40, open_close:40, female2040:50, solo:50, child:60, elder:90},
+  cafe: {pop:70, night:60, day:90, income:70, office:80, tourist:70,
+    rival_count:70, rival_review:90, rival_score:90, chain_ratio:90,
+    rent:80, vacancy:60, station:80,
+    pop_trend:60, mansion:40, open_close:50, female2040:70, solo:60, child:30, elder:20},
+  fitness: {pop:70, night:70, day:60, income:80, office:50, tourist:20,
+    rival_count:80, rival_review:70, rival_score:70, chain_ratio:70,
+    rent:70, vacancy:50, station:70,
+    pop_trend:70, mansion:60, open_close:50, female2040:70, solo:60, child:50, elder:20},
+  cowork: {pop:50, night:40, day:90, income:90, office:90, tourist:30,
+    rival_count:80, rival_review:60, rival_score:60, chain_ratio:50,
+    rent:80, vacancy:70, station:90,
+    pop_trend:80, mansion:70, open_close:70, female2040:60, solo:70, child:30, elder:10},
+  school: {pop:80, night:80, day:40, income:80, office:10, tourist:5,
+    rival_count:80, rival_review:60, rival_score:60, chain_ratio:60,
+    rent:70, vacancy:50, station:70,
+    pop_trend:70, mansion:80, open_close:50, female2040:40, solo:30, child:95, elder:30},
+};
+
+// ダミーエリアデータ（大阪中心部）
+const AREAS = [
+  {id:'a1', name:'梅田・北新地', lat:34.7055, lng:135.4983,
+   data:{pop:28, night:12, day:45, income:520, office:38, tourist:210,
+         rival_count:30, rival_review:380, rival_score:3.4, chain_ratio:62,
+         rent:8.2, vacancy:8, station:82,
+         pop_trend:3.2, mansion:240, open_close:1.4, female2040:34, solo:52, child:12, elder:18}},
+  {id:'a2', name:'難波・心斎橋', lat:34.6683, lng:135.5023,
+   data:{pop:22, night:18, day:55, income:460, office:22, tourist:580,
+         rival_count:20, rival_review:520, rival_score:3.6, chain_ratio:71,
+         rent:9.5, vacancy:6, station:75,
+         pop_trend:1.8, mansion:180, open_close:1.1, female2040:38, solo:48, child:10, elder:15}},
+  {id:'a3', name:'天王寺・阿倍野', lat:34.6466, lng:135.5133,
+   data:{pop:18, night:14, day:30, income:440, office:15, tourist:140,
+         rival_count:50, rival_review:220, rival_score:3.8, chain_ratio:48,
+         rent:5.8, vacancy:12, station:58,
+         pop_trend:4.1, mansion:320, open_close:1.6, female2040:40, solo:45, child:18, elder:22}},
+  {id:'a4', name:'福島・野田', lat:34.6933, lng:135.4766,
+   data:{pop:12, night:10, day:18, income:480, office:10, tourist:40,
+         rival_count:70, rival_review:180, rival_score:4.1, chain_ratio:32,
+         rent:4.2, vacancy:15, station:30,
+         pop_trend:5.8, mansion:410, open_close:1.9, female2040:42, solo:50, child:15, elder:20}},
+  {id:'a5', name:'本町・淀屋橋', lat:34.6876, lng:135.5001,
+   data:{pop:8, night:4, day:38, income:600, office:55, tourist:60,
+         rival_count:60, rival_review:290, rival_score:3.7, chain_ratio:55,
+         rent:7.8, vacancy:10, station:65,
+         pop_trend:2.5, mansion:150, open_close:1.2, female2040:35, solo:58, child:8, elder:16}},
+  {id:'a6', name:'天満・扇町', lat:34.7166, lng:135.5133,
+   data:{pop:10, night:9, day:14, income:390, office:8, tourist:25,
+         rival_count:75, rival_review:140, rival_score:4.3, chain_ratio:25,
+         rent:3.5, vacancy:18, station:22,
+         pop_trend:6.5, mansion:380, open_close:2.1, female2040:44, solo:55, child:16, elder:21}},
+  {id:'a7', name:'堀江・西心斎橋', lat:34.6700, lng:135.4900,
+   data:{pop:9, night:11, day:20, income:510, office:12, tourist:80,
+         rival_count:45, rival_review:310, rival_score:4.0, chain_ratio:38,
+         rent:5.5, vacancy:11, station:28,
+         pop_trend:4.8, mansion:260, open_close:1.7, female2040:48, solo:54, child:12, elder:14}},
+  {id:'a8', name:'京橋・天満橋', lat:34.6933, lng:135.5266,
+   data:{pop:15, night:12, day:22, income:410, office:18, tourist:50,
+         rival_count:65, rival_review:200, rival_score:3.9, chain_ratio:42,
+         rent:4.0, vacancy:14, station:45,
+         pop_trend:3.6, mansion:290, open_close:1.5, female2040:39, solo:47, child:17, elder:23}},
+];
+
+// スコア計算方向（high=高いほど良、low=低いほど良）
+const SCORE_DIR = {
+  pop:'high', night:'high', day:'high', income:'high', office:'high', tourist:'high',
+  rival_count:'high', rival_review:'low', rival_score:'low', chain_ratio:'low',
+  rent:'low', vacancy:'mid', station:'high',
+  pop_trend:'high', mansion:'high', open_close:'high',
+  female2040:'high', solo:'high', child:'high', elder:'high',
+};
+// vacancyは中程度が最良（10%前後）
+
+// ============================================================
+// STATE
+// ============================================================
+let currentGenre = 'cafe';
+let weights = {...PRESETS['cafe']};
+let selectedArea = null;
+let savedCount = 0;
+let catOpen = {demand:true, competition:false, cost:false, growth:false};
+let map, markers = {};
+
+// ============================================================
+// SCORE CALCULATION
+// ============================================================
+
+// 各エリアの指標を0〜100に正規化
+function normalize(metric, value) {
+  const vals = AREAS.map(a => a.data[metric]);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  if (max === min) return 50;
+  const dir = SCORE_DIR[metric];
+  if (dir === 'high') return Math.round((value - min) / (max - min) * 100);
+  if (dir === 'low')  return Math.round((1 - (value - min) / (max - min)) * 100);
+  // mid: best near 10%
+  if (dir === 'mid')  return Math.round(Math.max(0, 100 - Math.abs(value - 10) * 5));
+  return 50;
+}
+
+function calcScore(area) {
+  let weightedSum = 0, weightTotal = 0;
+  ALL_ITEMS.forEach(item => {
+    const w = weights[item.id] || 0;
+    const norm = normalize(item.id, area.data[item.id]);
+    weightedSum += norm * w;
+    weightTotal += w * 100;
+  });
+  return weightTotal > 0 ? Math.round(weightedSum / weightTotal * 100) : 0;
+}
+
+// カテゴリ別スコア
+function calcCatScores(area) {
+  return CATEGORIES.map(cat => {
+    let ws = 0, wt = 0;
+    cat.items.forEach(item => {
+      const w = weights[item.id] || 0;
+      const norm = normalize(item.id, area.data[item.id]);
+      ws += norm * w; wt += w * 100;
+    });
+    return {cat, score: wt > 0 ? Math.round(ws / wt * 100) : 0};
+  });
+}
+
+function gradeInfo(score) {
+  if (score >= 80) return {label:'◎ 優良',   color:'#e85d26'};
+  if (score >= 65) return {label:'○ 良好',   color:'#f0a500'};
+  if (score >= 50) return {label:'△ 普通',   color:'#1a4fa0'};
+  return              {label:'✕ 要注意', color:'#7a7a85'};
+}
+
+function markerColor(score) {
+  if (score >= 80) return '#e85d26';
+  if (score >= 60) return '#f0a500';
+  if (score >= 40) return '#1a4fa0';
+  return '#6a6a70';
+}
+
+// ============================================================
+// RENDER FUNCTIONS
+// ============================================================
+
+function renderGenreTabs() {
+  const bar = document.getElementById('genreBar');
+  bar.innerHTML = GENRES.map(g =>
+    `<button class="gbtn${g.id===currentGenre?' on':''}" onclick="selectGenre('${g.id}')">${g.label}</button>`
+  ).join('');
+}
+
+function renderPresets() {
+  const wrap = document.getElementById('presetBtns');
+  wrap.innerHTML = GENRES.map(g =>
+    `<button class="pbtn${g.id===currentGenre?' on':''}" onclick="applyPreset('${g.id}')">${g.label}</button>`
+  ).join('');
+}
+
+function renderSliders() {
+  const wrap = document.getElementById('sliderGroups');
+  wrap.innerHTML = CATEGORIES.map(cat => {
+    const newCount = cat.items.filter(i => i.isNew).length;
+    return `
+    <div class="cat-group">
+      <div class="cat-hd" onclick="toggleCat('${cat.id}')">
+        <div class="cat-hd-left">
+          <div class="cat-badge" style="background:${cat.color}"></div>
+          <span>${cat.label}</span>
+          ${newCount > 0 ? `<span class="new-tag">+${newCount}NEW</span>` : ''}
+        </div>
+        <span class="cat-arrow${catOpen[cat.id]?' open':''}" id="arr-${cat.id}">▶</span>
+      </div>
+      <div class="cat-body${catOpen[cat.id]?' open':''}" id="cat-${cat.id}">
+        ${cat.items.map(item => renderSlider(item)).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderSlider(item) {
+  const v = weights[item.id] || 0;
+  return `
+  <div class="sl-item">
+    <div class="sl-top">
+      <div style="display:flex;align-items:center;gap:5px">
+        <span class="sl-name">${item.label}</span>
+        ${item.isNew ? '<span class="sl-badge new">NEW</span>' : ''}
+      </div>
+      <span class="sl-val" id="sv-${item.id}">${v}</span>
+    </div>
+    <div class="sl-track">
+      <div class="sl-fill" id="sf-${item.id}" style="width:${v}%"></div>
+      <input type="range" min="0" max="100" value="${v}"
+        oninput="onSlider('${item.id}',this.value)">
+    </div>
+  </div>`;
+}
+
+function renderMap() {
+  if (!map) {
+    map = L.map('map', {zoomControl:true}).setView([34.693, 135.502], 13);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution:'©OpenStreetMap ©CartoDB', maxZoom:19
+    }).addTo(map);
+  }
+  // clear old markers
+  Object.values(markers).forEach(m => m.remove());
+  markers = {};
+
+  AREAS.forEach(area => {
+    const score = calcScore(area);
+    const color = markerColor(score);
+    const icon = L.divIcon({
+      className:'',
+      html:`<div style="
+        width:42px;height:42px;border-radius:50%;
+        background:${color};color:#fff;
+        display:flex;align-items:center;justify-content:center;
+        font-family:Syne,sans-serif;font-size:13px;font-weight:800;
+        box-shadow:0 3px 10px rgba(0,0,0,.25);
+        border:3px solid #fff;
+        cursor:pointer;
+        transition:transform .15s;
+      ">${score}</div>`,
+      iconSize:[42,42], iconAnchor:[21,21]
+    });
+    const m = L.marker([area.lat, area.lng], {icon})
+      .addTo(map)
+      .bindTooltip(area.name, {permanent:false, direction:'top'})
+      .on('click', () => selectArea(area.id));
+    markers[area.id] = m;
+  });
+}
+
+function renderRanking() {
+  const sorted = [...AREAS]
+    .map(a => ({...a, score: calcScore(a)}))
+    .sort((a,b) => b.score - a.score);
+
+  const wrap = document.getElementById('rankList');
+  wrap.innerHTML = sorted.map((a, i) => {
+    const g = gradeInfo(a.score);
+    const pct = a.score;
+    return `
+    <div class="rank-item${selectedArea===a.id?' selected':''}" onclick="selectArea('${a.id}')">
+      <div class="rank-num${i===0?' t1':i===1?' t2':i===2?' t3':''}">${i+1}</div>
+      <div class="rank-body">
+        <div class="rank-name">${a.name}</div>
+        <div class="rank-sub" style="color:${g.color}">${g.label}</div>
+      </div>
+      <div class="rank-score-wrap">
+        <span class="rank-score" style="color:${g.color}">${a.score}</span>
+        <div class="score-bar-mini">
+          <div class="score-bar-mini-fill" style="width:${pct}%;background:${g.color}"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderRightPanel(areaId) {
+  const area = AREAS.find(a => a.id === areaId);
+  if (!area) return;
+  const score = calcScore(area);
+  const g = gradeInfo(score);
+  const catScores = calcCatScores(area);
+
+  document.getElementById('rpTitle').textContent = area.name;
+  document.getElementById('rpLoc').textContent = `業種: ${GENRES.find(g=>g.id===currentGenre)?.label || '—'}`;
+  document.getElementById('rpContent').style.display = 'block';
+
+  // total
+  document.getElementById('tsVal').textContent = score;
+  document.getElementById('tsGrade').textContent = g.label;
+  document.getElementById('tsGrade').style.color = g.color;
+  const fill = document.getElementById('tsBarFill');
+  fill.style.width = '0';
+  fill.style.background = g.color;
+  setTimeout(() => { fill.style.width = score + '%'; }, 50);
+
+  // 4次元
+  const dimWrap = document.getElementById('dimScores');
+  dimWrap.innerHTML = catScores.map(({cat, score:cs}) => `
+    <div class="dim-item">
+      <div class="dim-dot" style="background:${cat.color}"></div>
+      <div class="dim-name">${cat.label}</div>
+      <div class="dim-bar-wrap">
+        <div class="dim-bar-fill" style="width:${cs}%;background:${cat.color}"></div>
+      </div>
+      <div class="dim-score">${cs}</div>
+    </div>
+  `).join('');
+
+  // 指標詳細
+  const grid = document.getElementById('indGrid');
+  grid.innerHTML = ALL_ITEMS.map(item => {
+    const val = area.data[item.id];
+    const norm = normalize(item.id, val);
+    const catColor = CATEGORIES.find(c => c.items.includes(item))?.color || '#888';
+    return `
+    <div class="ind-card${item.isNew?' new-ind':''}">
+      ${item.isNew ? '<div class="ind-new-tag">★ NEW</div>' : ''}
+      <div class="ind-card-label">${item.label}</div>
+      <div class="ind-card-val">${formatVal(item, val)}</div>
+      <div class="ind-card-bar">
+        <div class="ind-card-bar-fill" style="width:${norm}%;background:${catColor}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function formatVal(item, val) {
+  if (item.id === 'rival_score') return val.toFixed(1);
+  if (Number.isInteger(val)) return val.toLocaleString();
+  if (val < 10) return val.toFixed(1);
+  return Math.round(val).toLocaleString();
+}
+
+// ============================================================
+// ACTIONS
+// ============================================================
+
+function selectGenre(id) {
+  currentGenre = id;
+  renderGenreTabs();
+  renderPresets();
+  updateAll();
+}
+
+function applyPreset(id) {
+  currentGenre = id;
+  weights = {...PRESETS[id]};
+  renderGenreTabs();
+  renderPresets();
+  renderSliders();
+  updateAll();
+}
+
+function toggleCat(id) {
+  catOpen[id] = !catOpen[id];
+  document.getElementById(`cat-${id}`).classList.toggle('open', catOpen[id]);
+  const arr = document.getElementById(`arr-${id}`);
+  if (arr) arr.classList.toggle('open', catOpen[id]);
+}
+
+function onSlider(id, val) {
+  weights[id] = parseInt(val);
+  document.getElementById(`sv-${id}`).textContent = val;
+  document.getElementById(`sf-${id}`).style.width = val + '%';
+  updateAll(true);
+}
+
+function selectArea(id) {
+  selectedArea = id;
+  document.getElementById('mapHint').style.display = 'none';
+  renderRightPanel(id);
+  renderRanking();
+  // highlight marker
+  Object.entries(markers).forEach(([aid, m]) => {
+    const score = calcScore(AREAS.find(a=>a.id===aid));
+    const color = aid === id ? '#e85d26' : markerColor(score);
+    const icon = L.divIcon({
+      className:'',
+      html:`<div style="
+        width:${aid===id?50:42}px;height:${aid===id?50:42}px;border-radius:50%;
+        background:${color};color:#fff;
+        display:flex;align-items:center;justify-content:center;
+        font-family:Syne,sans-serif;font-size:${aid===id?15:13}px;font-weight:800;
+        box-shadow:${aid===id?'0 4px 16px rgba(232,93,38,.5)':'0 3px 10px rgba(0,0,0,.25)'};
+        border:3px solid #fff;cursor:pointer;
+      ">${score}</div>`,
+      iconSize:[aid===id?50:42,aid===id?50:42],
+      iconAnchor:[aid===id?25:21,aid===id?25:21]
+    });
+    m.setIcon(icon);
+  });
+}
+
+function switchPanel(p) {
+  document.getElementById('wPanel').style.display = p==='w' ? 'block' : 'none';
+  document.getElementById('rPanel').style.display = p==='r' ? 'block' : 'none';
+  document.getElementById('ptW').classList.toggle('on', p==='w');
+  document.getElementById('ptR').classList.toggle('on', p==='r');
+}
+
+function updateAll(skipSlider) {
+  renderMap();
+  renderRanking();
+  if (selectedArea) renderRightPanel(selectedArea);
+  // update header top score
+  const top = Math.max(...AREAS.map(a => calcScore(a)));
+  document.getElementById('hTop').textContent = top;
+}
+
+function saveAnalysis() {
+  if (!selectedArea) { alert('エリアを選択してください'); return; }
+  savedCount++;
+  document.getElementById('hSave').textContent = savedCount;
+  document.getElementById('saveCount').textContent = `保存済み: ${savedCount}件`;
+  const area = AREAS.find(a => a.id === selectedArea);
+  console.log('SAVED', {genre:currentGenre, area:area.name, score:calcScore(area), weights:{...weights}});
+  const btn = document.querySelector('.save-btn');
+  btn.textContent = '✓ 保存しました';
+  btn.style.background = 'var(--green)';
+  setTimeout(() => {
+    btn.innerHTML = '<span>📌</span> この分析を保存';
+    btn.style.background = '';
+  }, 1500);
+}
+
+async function searchAddress() {
+  const q = document.getElementById('addrInput').value.trim();
+  if (!q) return;
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+' 大阪')}&format=json&limit=1`);
+    const data = await res.json();
+    if (data.length > 0) {
+      const {lat, lon} = data[0];
+      map.setView([parseFloat(lat), parseFloat(lon)], 15);
+      // 最近傍エリアを選択
+      let near = null, minD = Infinity;
+      AREAS.forEach(a => {
+        const d = Math.hypot(a.lat - lat, a.lng - lon);
+        if (d < minD) { minD = d; near = a; }
+      });
+      if (near) selectArea(near.id);
+    } else {
+      alert('住所が見つかりませんでした');
+    }
+  } catch(e) {
+    alert('検索に失敗しました');
+  }
+}
+
+document.getElementById('addrInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') searchAddress();
+});
+
+// ============================================================
+// INIT
+// ============================================================
+renderGenreTabs();
+renderPresets();
+renderSliders();
+renderMap();
+renderRanking();
+</script>
+</body>
+</html>
