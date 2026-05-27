@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChemViz — 化学式ビジュアライザー</title>
+  <script src="https://unpkg.com/smiles-drawer@2.1.7/dist/smiles-drawer.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
+      --border: #30363d; --text: #c9d1d9; --text-dim: #8b949e;
+      --accent: #58a6ff; --accent-hover: #79b8ff; --success: #3fb950;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg); color: var(--text);
+      height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    header { background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 10px 20px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    header h1 { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+    header p  { color: var(--text-dim); font-size: 0.8rem; flex: 1; }
+    .palette-toggle { background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--text); cursor: pointer; font-size: 0.8rem;
+      font-weight: 500; padding: 6px 13px; transition: all 0.15s; }
+    .palette-toggle:hover { border-color: var(--accent); color: var(--accent); background: var(--surface2); }
+
+    .app { display: grid; grid-template-columns: 255px 1fr 275px; flex: 1; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar { background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow: hidden; }
+    .search-box { padding: 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .search-row { display: flex; gap: 6px; }
+    .search-row input { flex: 1; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); padding: 6px 9px; font-size: 0.8125rem; outline: none; }
+    .search-row input:focus { border-color: var(--accent); }
+    .search-row input::placeholder { color: var(--text-dim); }
+    .hint { margin-top: 5px; font-size: 0.7rem; color: var(--text-dim); }
+    button { background: var(--accent); border: none; border-radius: 6px; color: #0d1117;
+      cursor: pointer; font-size: 0.8rem; font-weight: 600; padding: 6px 11px; transition: background 0.15s; }
+    button:hover { background: var(--accent-hover); }
+    .presets { flex: 1; overflow-y: auto; padding: 6px 8px 12px; }
+    .presets::-webkit-scrollbar { width: 3px; }
+    .presets::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .cat-label { color: var(--text-dim); font-size: 0.65rem; font-weight: 600;
+      letter-spacing: 0.07em; text-transform: uppercase; padding: 8px 2px 4px; }
+    .mol-grid { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+    .mol-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 5px;
+      color: var(--text); cursor: pointer; font-size: 0.73rem; font-weight: 400;
+      padding: 3px 8px; transition: all 0.12s; }
+    .mol-btn:hover { background: var(--accent); border-color: var(--accent); color: #0d1117; }
+    .mol-btn.active { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600; }
+
+    /* Canvas */
+    .canvas-area { background: #0d1117; position: relative; overflow: hidden; }
+    .canvas-controls { position: absolute; bottom: 14px; right: 14px; display: flex; gap: 5px; z-index: 10; }
+    .ctrl-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 7px;
+      color: var(--text); cursor: pointer; font-size: 0.9rem; font-weight: 500;
+      width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; transition: all 0.12s; }
+    .ctrl-btn:hover { background: var(--surface2); border-color: var(--accent); color: var(--accent); }
+    .canvas-wrapper { width: 100%; height: 100%; cursor: grab; position: relative; }
+    .canvas-wrapper:active { cursor: grabbing; }
+    #mol-canvas { position: absolute; top: 50%; left: 50%; border-radius: 8px; display: none; }
+    .placeholder { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      display: flex; flex-direction: column; align-items: center;
+      color: var(--text-dim); text-align: center; pointer-events: none; }
+    .placeholder .icon { font-size: 3.5rem; margin-bottom: 10px; }
+    .placeholder p { font-size: 0.875rem; line-height: 1.6; }
+    .zoom-hint { position: absolute; bottom: 14px; left: 14px; font-size: 0.7rem;
+      color: var(--text-dim); pointer-events: none; }
+
+    /* Info panel */
+    .info-panel { background: var(--surface); border-left: 1px solid var(--border);
+      overflow-y: auto; padding: 14px; }
+    .info-panel::-webkit-scrollbar { width: 3px; }
+    .info-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .info-section { margin-bottom: 18px; }
+    .info-section h3 { color: var(--text-dim); font-size: 0.65rem; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px;
+      padding-bottom: 5px; border-bottom: 1px solid var(--border); }
+    .mol-name { font-size: 1.2rem; font-weight: 700; margin-bottom: 3px; }
+    .mol-formula { font-size: 1.05rem; color: var(--accent); font-family: 'Courier New', monospace; margin-bottom: 7px; }
+    .mol-desc { font-size: 0.78rem; color: var(--text-dim); line-height: 1.55; }
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .stat-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 9px 10px; }
+    .stat-label { font-size: 0.67rem; color: var(--text-dim); margin-bottom: 2px; }
+    .stat-value { font-size: 0.95rem; font-weight: 600; }
+    .element-list { display: flex; flex-direction: column; gap: 5px; }
+    .element-item { display: flex; align-items: center; gap: 9px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 7px; padding: 7px 10px; }
+    .elem-badge { width: 34px; height: 34px; border-radius: 5px; display: flex; align-items: center;
+      justify-content: center; font-weight: 700; font-size: 0.83rem; flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.15); }
+    .elem-info { flex: 1; min-width: 0; }
+    .elem-name { font-size: 0.8rem; font-weight: 600; }
+    .elem-detail { font-size: 0.7rem; color: var(--text-dim); }
+    .elem-count { font-size: 1rem; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+    .smiles-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+      padding: 8px 10px; font-family: 'Courier New', monospace; font-size: 0.76rem;
+      word-break: break-all; color: var(--success); line-height: 1.5; }
+    .empty-info { color: var(--text-dim); font-size: 0.85rem; text-align: center;
+      padding: 50px 10px; line-height: 1.8; }
+    .empty-info .icon { font-size: 2.5rem; margin-bottom: 8px; }
+    .error-msg { background: #2d1b1b; border: 1px solid #5a2020; border-radius: 6px;
+      color: #f85149; font-size: 0.78rem; padding: 8px 10px; margin-top: 6px; display: none; }
+
+    /* ── Palette Modal ── */
+    .palette-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      z-index: 100; display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .palette-overlay.open { opacity: 1; pointer-events: all; }
+    .palette-modal { background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px 24px 18px; max-width: 96vw; max-height: 94vh;
+      overflow: auto; box-shadow: 0 24px 80px rgba(0,0,0,0.6); }
+    .palette-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .palette-header h2 { font-size: 1rem; font-weight: 700; color: var(--text); }
+    .close-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text-dim); cursor: pointer; font-size: 1.1rem; font-weight: 300;
+      width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
+    .close-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--surface2); }
+
+    .pt-wrap { display: flex; flex-direction: column; gap: 0; }
+    .pt-grid {
+      display: grid;
+      grid-template-columns: repeat(18, 36px);
+      grid-template-rows: repeat(7, 42px) 10px repeat(2, 42px);
+      gap: 2px;
+    }
+    .pt-cell {
+      border-radius: 4px; cursor: pointer; position: relative;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; transition: transform 0.1s, box-shadow 0.1s;
+      border: 1px solid rgba(255,255,255,0.08);
+      overflow: hidden;
+    }
+    .pt-cell:hover { transform: scale(1.15); z-index: 2; box-shadow: 0 4px 16px rgba(0,0,0,0.5); }
+    .pt-cell.in-mol {
+      box-shadow: 0 0 0 2px var(--accent), 0 0 10px rgba(88,166,255,0.55);
+      z-index: 1;
+      border-color: var(--accent);
+    }
+    .pt-cell.in-mol:hover { transform: scale(1.15); z-index: 3; }
+    .pt-cell.pt-empty { background: transparent; border: none; cursor: default; pointer-events: none; }
+    .pt-cell.pt-placeholder { border-radius: 4px; display: flex; align-items: center;
+      justify-content: center; cursor: default; border: 1px dashed var(--border); }
+    .pt-no { font-size: 0.55rem; line-height: 1; opacity: 0.75; position: absolute; top: 3px; left: 4px; }
+    .pt-sym { font-size: 0.82rem; font-weight: 700; line-height: 1; margin-top: 4px; }
+
+    /* Detail bar */
+    .pt-detail-bar { background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 16px; margin-top: 12px;
+      display: flex; align-items: center; gap: 16px; min-height: 64px; }
+    .pt-detail-swatch { width: 44px; height: 44px; border-radius: 7px;
+      border: 1px solid rgba(255,255,255,0.15); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 700; }
+    .pt-detail-main { flex: 1; }
+    .pt-detail-name { font-size: 1rem; font-weight: 700; }
+    .pt-detail-sub { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; }
+    .pt-detail-stats { display: flex; gap: 18px; flex-shrink: 0; }
+    .pt-stat { text-align: center; }
+    .pt-stat-val { font-size: 1rem; font-weight: 700; color: var(--accent); }
+    .pt-stat-lbl { font-size: 0.65rem; color: var(--text-dim); }
+
+    /* Legend */
+    .pt-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; }
+    .pt-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; color: var(--text-dim); }
+    .pt-legend-dot { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚗️ ChemViz</h1>
+  <p>化学式ビジュアライザー</p>
+  <button class="palette-toggle" onclick="openPalette()">🎨 元素パレット</button>
+</header>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="search-box">
+      <div class="search-row">
+        <input type="text" id="smiles-input" placeholder="分子名 or SMILES を入力…" list="mol-list">
+        <button onclick="drawFromInput()">描画</button>
+      </div>
+      <datalist id="mol-list"></datalist>
+      <p class="hint">例: CCO (エタノール), c1ccccc1 (ベンゼン)</p>
+      <div class="error-msg" id="error-msg"></div>
+    </div>
+    <div class="presets" id="presets"></div>
+  </aside>
+
+  <main class="canvas-area">
+    <div class="canvas-wrapper" id="canvas-wrapper">
+      <div class="placeholder" id="placeholder">
+        <div class="icon">🧪</div>
+        <p>分子を選択するか<br>SMILESを入力してください</p>
+      </div>
+      <canvas id="mol-canvas"></canvas>
+    </div>
+    <div class="canvas-controls">
+      <button class="ctrl-btn" onclick="zoom(1.25)">＋</button>
+      <button class="ctrl-btn" onclick="zoom(0.8)">－</button>
+      <button class="ctrl-btn" onclick="resetView()" style="font-size:1rem">⟳</button>
+    </div>
+    <div class="zoom-hint">スクロール: ズーム ／ ドラッグ: 移動</div>
+  </main>
+
+  <aside class="info-panel">
+    <div class="empty-info" id="empty-info">
+      <div class="icon">📋</div>
+      分子を選択すると<br>詳細情報が表示されます
+    </div>
+    <div id="mol-info" style="display:none">
+      <div class="info-section">
+        <h3>基本情報</h3>
+        <div class="mol-name" id="info-name"></div>
+        <div class="mol-formula" id="info-formula"></div>
+        <div class="mol-desc" id="info-desc"></div>
+      </div>
+      <div class="info-section">
+        <h3>物性値</h3>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">分子量</div><div class="stat-value" id="info-mw"></div></div>
+          <div class="stat-card"><div class="stat-label">分類</div><div class="stat-value" id="info-cat"></div></div>
+          <div class="stat-card"><div class="stat-label">元素の種類</div><div class="stat-value" id="info-elems"></div></div>
+          <div class="stat-card"><div class="stat-label">総原子数</div><div class="stat-value" id="info-atoms"></div></div>
+        </div>
+      </div>
+      <div class="info-section">
+        <h3>元素組成</h3>
+        <div class="element-list" id="elem-list"></div>
+      </div>
+      <div class="info-section">
+        <h3>SMILES</h3>
+        <div class="smiles-box" id="info-smiles"></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- Palette Modal -->
+<div class="palette-overlay" id="palette-overlay" onclick="handleOverlayClick(event)">
+  <div class="palette-modal">
+    <div class="palette-header">
+      <h2>🎨 元素パレット（全118元素 / Jmol CPKカラー）</h2>
+      <button class="close-btn" onclick="closePalette()">✕</button>
+    </div>
+    <div class="pt-wrap">
+      <div class="pt-grid" id="pt-grid"></div>
+      <div class="pt-detail-bar" id="pt-detail-bar">
+        <div class="pt-detail-swatch" id="pt-swatch" style="background:#21262d;color:#8b949e">?</div>
+        <div class="pt-detail-main">
+          <div class="pt-detail-name" id="pt-dname">元素にマウスを重ねると詳細が表示されます</div>
+          <div class="pt-detail-sub" id="pt-dsub"></div>
+        </div>
+        <div class="pt-detail-stats" id="pt-dstats" style="display:none">
+          <div class="pt-stat"><div class="pt-stat-val" id="pt-dno"></div><div class="pt-stat-lbl">原子番号</div></div>
+          <div class="pt-stat"><div class="pt-stat-val" id="pt-dwt"></div><div class="pt-stat-lbl">原子量</div></div>
+        </div>
+      </div>
+      <div class="pt-legend" id="pt-legend"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Full element data (all 118, Jmol CPK colors) ──────────────────────────────
+const ALL_ELEMENTS = [
+  {sym:'H',  no:1,   ja:'水素',            wt:1.008,   row:1, col:1,  cat:'nonmetal',       color:'#ffffff'},
+  {sym:'He', no:2,   ja:'ヘリウム',        wt:4.003,   row:1, col:18, cat:'noble',           color:'#d9ffff'},
+  {sym:'Li', no:3,   ja:'リチウム',        wt:6.941,   row:2, col:1,  cat:'alkali',          color:'#cc80ff'},
+  {sym:'Be', no:4,   ja:'ベリリウム',      wt:9.012,   row:2, col:2,  cat:'alkaline-earth',  color:'#c2ff00'},
+  {sym:'B',  no:5,   ja:'ホウ素',          wt:10.81,   row:2, col:13, cat:'metalloid',       color:'#ffb5b5'},
+  {sym:'C',  no:6,   ja:'炭素',            wt:12.011,  row:2, col:14, cat:'nonmetal',        color:'#909090'},
+  {sym:'N',  no:7,   ja:'窒素',            wt:14.007,  row:2, col:15, cat:'nonmetal',        color:'#3050f8'},
+  {sym:'O',  no:8,   ja:'酸素',            wt:15.999,  row:2, col:16, cat:'nonmetal',        color:'#ff0d0d'},
+  {sym:'F',  no:9,   ja:'フッ素',          wt:18.998,  row:2, col:17, cat:'halogen',         color:'#90e050'},
+  {sym:'Ne', no:10,  ja:'ネオン',          wt:20.180,  row:2, col:18, cat:'noble',           color:'#b3e3f5'},
+  {sym:'Na', no:11,  ja:'ナトリウム',      wt:22.990,  row:3, col:1,  cat:'alkali',          color:'#ab5cf2'},
+  {sym:'Mg', no:12,  ja:'マグネシウム',    wt:24.305,  row:3, col:2,  cat:'alkaline-earth',  color:'#8aff00'},
+  {sym:'Al', no:13,  ja:'アルミニウム',    wt:26.982,  row:3, col:13, cat:'post-transition', color:'#bfa6a6'},
+  {sym:'Si', no:14,  ja:'ケイ素',          wt:28.085,  row:3, col:14, cat:'metalloid',       color:'#f0c8a0'},
+  {sym:'P',  no:15,  ja:'リン',            wt:30.974,  row:3, col:15, cat:'nonmetal',        color:'#ff8000'},
+  {sym:'S',  no:16,  ja:'硫黄',            wt:32.06,   row:3, col:16, cat:'nonmetal',        color:'#ffff30'},
+  {sym:'Cl', no:17,  ja:'塩素',            wt:35.45,   row:3, col:17, cat:'halogen',         color:'#1ff01f'},
+  {sym:'Ar', no:18,  ja:'アルゴン',        wt:39.948,  row:3, col:18, cat:'noble',           color:'#80d1e3'},
+  {sym:'K',  no:19,  ja:'カリウム',        wt:39.098,  row:4, col:1,  cat:'alkali',          color:'#8f40d4'},
+  {sym:'Ca', no:20,  ja:'カルシウム',      wt:40.078,  row:4, col:2,  cat:'alkaline-earth',  color:'#3dff00'},
+  {sym:'Sc', no:21,  ja:'スカンジウム',    wt:44.956,  row:4, col:3,  cat:'transition',      color:'#e6e6e6'},
+  {sym:'Ti', no:22,  ja:'チタン',          wt:47.867,  row:4, col:4,  cat:'transition',      color:'#bfc2c7'},
+  {sym:'V',  no:23,  ja:'バナジウム',      wt:50.942,  row:4, col:5,  cat:'transition',      color:'#a6a6ab'},
+  {sym:'Cr', no:24,  ja:'クロム',          wt:51.996,  row:4, col:6,  cat:'transition',      color:'#8a99c7'},
+  {sym:'Mn', no:25,  ja:'マンガン',        wt:54.938,  row:4, col:7,  cat:'transition',      color:'#9c7ac7'},
+  {sym:'Fe', no:26,  ja:'鉄',              wt:55.845,  row:4, col:8,  cat:'transition',      color:'#e06633'},
+  {sym:'Co', no:27,  ja:'コバルト',        wt:58.933,  row:4, col:9,  cat:'transition',      color:'#f090a0'},
+  {sym:'Ni', no:28,  ja:'ニッケル',        wt:58.693,  row:4, col:10, cat:'transition',      color:'#50d050'},
+  {sym:'Cu', no:29,  ja:'銅',              wt:63.546,  row:4, col:11, cat:'transition',      color:'#c88033'},
+  {sym:'Zn', no:30,  ja:'亜鉛',            wt:65.38,   row:4, col:12, cat:'transition',      color:'#7d80b0'},
+  {sym:'Ga', no:31,  ja:'ガリウム',        wt:69.723,  row:4, col:13, cat:'post-transition', color:'#c28f8f'},
+  {sym:'Ge', no:32,  ja:'ゲルマニウム',    wt:72.630,  row:4, col:14, cat:'metalloid',       color:'#668f8f'},
+  {sym:'As', no:33,  ja:'ヒ素',            wt:74.922,  row:4, col:15, cat:'metalloid',       color:'#bd80e3'},
+  {sym:'Se', no:34,  ja:'セレン',          wt:78.971,  row:4, col:16, cat:'nonmetal',        color:'#ffa100'},
+  {sym:'Br', no:35,  ja:'臭素',            wt:79.904,  row:4, col:17, cat:'halogen',         color:'#a62929'},
+  {sym:'Kr', no:36,  ja:'クリプトン',      wt:83.798,  row:4, col:18, cat:'noble',           color:'#5cb8d1'},
+  {sym:'Rb', no:37,  ja:'ルビジウム',      wt:85.468,  row:5, col:1,  cat:'alkali',          color:'#702eb0'},
+  {sym:'Sr', no:38,  ja:'ストロンチウム',  wt:87.62,   row:5, col:2,  cat:'alkaline-earth',  color:'#00ff00'},
+  {sym:'Y',  no:39,  ja:'イットリウム',    wt:88.906,  row:5, col:3,  cat:'transition',      color:'#94ffff'},
+  {sym:'Zr', no:40,  ja:'ジルコニウム',    wt:91.224,  row:5, col:4,  cat:'transition',      color:'#94e0e0'},
+  {sym:'Nb', no:41,  ja:'ニオブ',          wt:92.906,  row:5, col:5,  cat:'transition',      color:'#73c2c9'},
+  {sym:'Mo', no:42,  ja:'モリブデン',      wt:95.95,   row:5, col:6,  cat:'transition',      color:'#54b5b5'},
+  {sym:'Tc', no:43,  ja:'テクネチウム',    wt:98,      row:5, col:7,  cat:'transition',      color:'#3b9e9e'},
+  {sym:'Ru', no:44,  ja:'ルテニウム',      wt:101.07,  row:5, col:8,  cat:'transition',      color:'#248f8f'},
+  {sym:'Rh', no:45,  ja:'ロジウム',        wt:102.91,  row:5, col:9,  cat:'transition',      color:'#0a7d8c'},
+  {sym:'Pd', no:46,  ja:'パラジウム',      wt:106.42,  row:5, col:10, cat:'transition',      color:'#006985'},
+  {sym:'Ag', no:47,  ja:'銀',              wt:107.87,  row:5, col:11, cat:'transition',      color:'#c0c0c0'},
+  {sym:'Cd', no:48,  ja:'カドミウム',      wt:112.41,  row:5, col:12, cat:'transition',      color:'#ffd98f'},
+  {sym:'In', no:49,  ja:'インジウム',      wt:114.82,  row:5, col:13, cat:'post-transition', color:'#a67573'},
+  {sym:'Sn', no:50,  ja:'スズ',            wt:118.71,  row:5, col:14, cat:'post-transition', color:'#668080'},
+  {sym:'Sb', no:51,  ja:'アンチモン',      wt:121.76,  row:5, col:15, cat:'metalloid',       color:'#9e63b5'},
+  {sym:'Te', no:52,  ja:'テルル',          wt:127.60,  row:5, col:16, cat:'metalloid',       color:'#d47a00'},
+  {sym:'I',  no:53,  ja:'ヨウ素',          wt:126.90,  row:5, col:17, cat:'halogen',         color:'#940094'},
+  {sym:'Xe', no:54,  ja:'キセノン',        wt:131.29,  row:5, col:18, cat:'noble',           color:'#429eb0'},
+  {sym:'Cs', no:55,  ja:'セシウム',        wt:132.91,  row:6, col:1,  cat:'alkali',          color:'#57178f'},
+  {sym:'Ba', no:56,  ja:'バリウム',        wt:137.33,  row:6, col:2,  cat:'alkaline-earth',  color:'#00c900'},
+  {sym:'La', no:57,  ja:'ランタン',        wt:138.91,  row:9, col:3,  cat:'lanthanoid',      color:'#70d4ff'},
+  {sym:'Ce', no:58,  ja:'セリウム',        wt:140.12,  row:9, col:4,  cat:'lanthanoid',      color:'#ffffc7'},
+  {sym:'Pr', no:59,  ja:'プラセオジム',    wt:140.91,  row:9, col:5,  cat:'lanthanoid',      color:'#d9ffc7'},
+  {sym:'Nd', no:60,  ja:'ネオジム',        wt:144.24,  row:9, col:6,  cat:'lanthanoid',      color:'#c7ffc7'},
+  {sym:'Pm', no:61,  ja:'プロメチウム',    wt:145,     row:9, col:7,  cat:'lanthanoid',      color:'#a3ffc7'},
+  {sym:'Sm', no:62,  ja:'サマリウム',      wt:150.36,  row:9, col:8,  cat:'lanthanoid',      color:'#8fffc7'},
+  {sym:'Eu', no:63,  ja:'ユウロピウム',    wt:151.96,  row:9, col:9,  cat:'lanthanoid',      color:'#61ffc7'},
+  {sym:'Gd', no:64,  ja:'ガドリニウム',    wt:157.25,  row:9, col:10, cat:'lanthanoid',      color:'#45ffc7'},
+  {sym:'Tb', no:65,  ja:'テルビウム',      wt:158.93,  row:9, col:11, cat:'lanthanoid',      color:'#30ffc7'},
+  {sym:'Dy', no:66,  ja:'ジスプロシウム',  wt:162.50,  row:9, col:12, cat:'lanthanoid',      color:'#1fffc7'},
+  {sym:'Ho', no:67,  ja:'ホルミウム',      wt:164.93,  row:9, col:13, cat:'lanthanoid',      color:'#00ff9c'},
+  {sym:'Er', no:68,  ja:'エルビウム',      wt:167.26,  row:9, col:14, cat:'lanthanoid',      color:'#00e675'},
+  {sym:'Tm', no:69,  ja:'ツリウム',        wt:168.93,  row:9, col:15, cat:'lanthanoid',      color:'#00d452'},
+  {sym:'Yb', no:70,  ja:'イッテルビウム',  wt:173.05,  row:9, col:16, cat:'lanthanoid',      color:'#00bf38'},
+  {sym:'Lu', no:71,  ja:'ルテチウム',      wt:174.97,  row:9, col:17, cat:'lanthanoid',      color:'#00ab24'},
+  {sym:'Hf', no:72,  ja:'ハフニウム',      wt:178.49,  row:6, col:4,  cat:'transition',      color:'#4dc2ff'},
+  {sym:'Ta', no:73,  ja:'タンタル',        wt:180.95,  row:6, col:5,  cat:'transition',      color:'#4da6ff'},
+  {sym:'W',  no:74,  ja:'タングステン',    wt:183.84,  row:6, col:6,  cat:'transition',      color:'#2194d6'},
+  {sym:'Re', no:75,  ja:'レニウム',        wt:186.21,  row:6, col:7,  cat:'transition',      color:'#267dab'},
+  {sym:'Os', no:76,  ja:'オスミウム',      wt:190.23,  row:6, col:8,  cat:'transition',      color:'#266696'},
+  {sym:'Ir', no:77,  ja:'イリジウム',      wt:192.22,  row:6, col:9,  cat:'transition',      color:'#175487'},
+  {sym:'Pt', no:78,  ja:'白金',            wt:195.08,  row:6, col:10, cat:'transition',      color:'#d0d0e0'},
+  {sym:'Au', no:79,  ja:'金',              wt:196.97,  row:6, col:11, cat:'transition',      color:'#ffd123'},
+  {sym:'Hg', no:80,  ja:'水銀',            wt:200.59,  row:6, col:12, cat:'transition',      color:'#b8b8d0'},
+  {sym:'Tl', no:81,  ja:'タリウム',        wt:204.38,  row:6, col:13, cat:'post-transition', color:'#a6544d'},
+  {sym:'Pb', no:82,  ja:'鉛',              wt:207.2,   row:6, col:14, cat:'post-transition', color:'#575961'},
+  {sym:'Bi', no:83,  ja:'ビスマス',        wt:208.98,  row:6, col:15, cat:'post-transition', color:'#9e4fb5'},
+  {sym:'Po', no:84,  ja:'ポロニウム',      wt:209,     row:6, col:16, cat:'post-transition', color:'#ab5c00'},
+  {sym:'At', no:85,  ja:'アスタチン',      wt:210,     row:6, col:17, cat:'halogen',         color:'#754f45'},
+  {sym:'Rn', no:86,  ja:'ラドン',          wt:222,     row:6, col:18, cat:'noble',           color:'#428296'},
+  {sym:'Fr', no:87,  ja:'フランシウム',    wt:223,     row:7, col:1,  cat:'alkali',          color:'#420066'},
+  {sym:'Ra', no:88,  ja:'ラジウム',        wt:226,     row:7, col:2,  cat:'alkaline-earth',  color:'#007d00'},
+  {sym:'Ac', no:89,  ja:'アクチニウム',    wt:227,     row:10,col:3,  cat:'actinoid',        color:'#70abfa'},
+  {sym:'Th', no:90,  ja:'トリウム',        wt:232.04,  row:10,col:4,  cat:'actinoid',        color:'#00baff'},
+  {sym:'Pa', no:91,  ja:'プロトアクチニウム',wt:231.04,row:10,col:5,  cat:'actinoid',        color:'#00a1ff'},
+  {sym:'U',  no:92,  ja:'ウラン',          wt:238.03,  row:10,col:6,  cat:'actinoid',        color:'#008fff'},
+  {sym:'Np', no:93,  ja:'ネプツニウム',    wt:237,     row:10,col:7,  cat:'actinoid',        color:'#0080ff'},
+  {sym:'Pu', no:94,  ja:'プルトニウム',    wt:244,     row:10,col:8,  cat:'actinoid',        color:'#006bff'},
+  {sym:'Am', no:95,  ja:'アメリシウム',    wt:243,     row:10,col:9,  cat:'actinoid',        color:'#545cf2'},
+  {sym:'Cm', no:96,  ja:'キュリウム',      wt:247,     row:10,col:10, cat:'actinoid',        color:'#785ce3'},
+  {sym:'Bk', no:97,  ja:'バークリウム',    wt:247,     row:10,col:11, cat:'actinoid',        color:'#8a4fe3'},
+  {sym:'Cf', no:98,  ja:'カリホルニウム',  wt:251,     row:10,col:12, cat:'actinoid',        color:'#a136d4'},
+  {sym:'Es', no:99,  ja:'アインスタイニウム',wt:252,   row:10,col:13, cat:'actinoid',        color:'#b31fd4'},
+  {sym:'Fm', no:100, ja:'フェルミウム',    wt:257,     row:10,col:14, cat:'actinoid',        color:'#b31fba'},
+  {sym:'Md', no:101, ja:'メンデレビウム',  wt:258,     row:10,col:15, cat:'actinoid',        color:'#b30da6'},
+  {sym:'No', no:102, ja:'ノーベリウム',    wt:259,     row:10,col:16, cat:'actinoid',        color:'#bd0d87'},
+  {sym:'Lr', no:103, ja:'ローレンシウム',  wt:266,     row:10,col:17, cat:'actinoid',        color:'#c70066'},
+  {sym:'Rf', no:104, ja:'ラザホージウム',  wt:267,     row:7, col:4,  cat:'transition',      color:'#cc0059'},
+  {sym:'Db', no:105, ja:'ドブニウム',      wt:268,     row:7, col:5,  cat:'transition',      color:'#d1004f'},
+  {sym:'Sg', no:106, ja:'シーボーギウム',  wt:269,     row:7, col:6,  cat:'transition',      color:'#d90045'},
+  {sym:'Bh', no:107, ja:'ボーリウム',      wt:270,     row:7, col:7,  cat:'transition',      color:'#e00038'},
+  {sym:'Hs', no:108, ja:'ハッシウム',      wt:277,     row:7, col:8,  cat:'transition',      color:'#e6002e'},
+  {sym:'Mt', no:109, ja:'マイトネリウム',  wt:278,     row:7, col:9,  cat:'transition',      color:'#eb0026'},
+  {sym:'Ds', no:110, ja:'ダームスタチウム',wt:281,     row:7, col:10, cat:'transition',      color:'#eb0026'},
+  {sym:'Rg', no:111, ja:'レントゲニウム',  wt:282,     row:7, col:11, cat:'transition',      color:'#eb0026'},
+  {sym:'Cn', no:112, ja:'コペルニシウム',  wt:285,     row:7, col:12, cat:'transition',      color:'#eb0026'},
+  {sym:'Nh', no:113, ja:'ニホニウム',      wt:286,     row:7, col:13, cat:'post-transition', color:'#eb0026'},
+  {sym:'Fl', no:114, ja:'フレロビウム',    wt:289,     row:7, col:14, cat:'post-transition', color:'#eb0026'},
+  {sym:'Mc', no:115, ja:'モスコビウム',    wt:290,     row:7, col:15, cat:'post-transition', color:'#eb0026'},
+  {sym:'Lv', no:116, ja:'リバモリウム',    wt:293,     row:7, col:16, cat:'post-transition', color:'#eb0026'},
+  {sym:'Ts', no:117, ja:'テネシン',        wt:294,     row:7, col:17, cat:'halogen',         color:'#eb0026'},
+  {sym:'Og', no:118, ja:'オガネソン',      wt:294,     row:7, col:18, cat:'noble',           color:'#eb0026'},
+];
+
+const ELEM_MAP = {};
+ALL_ELEMENTS.forEach(e => { ELEM_MAP[e.sym] = e; });
+
+const CAT_LABELS = {
+  'alkali':          {ja:'アルカリ金属',     color:'#cc80ff'},
+  'alkaline-earth':  {ja:'アルカリ土類金属', color:'#c2ff00'},
+  'transition':      {ja:'遷移金属',         color:'#e06633'},
+  'lanthanoid':      {ja:'ランタノイド',     color:'#70d4ff'},
+  'actinoid':        {ja:'アクチノイド',     color:'#70abfa'},
+  'post-transition': {ja:'典型金属',         color:'#bfa6a6'},
+  'metalloid':       {ja:'半金属',           color:'#f0c8a0'},
+  'nonmetal':        {ja:'非金属',           color:'#ff0d0d'},
+  'halogen':         {ja:'ハロゲン',         color:'#1ff01f'},
+  'noble':           {ja:'貴ガス',           color:'#80d1e3'},
+};
+
+// ── Molecule database ─────────────────────────────────────────────────────────
+const CATEGORIES = [
+  { label:'無機化合物', items:[
+    {name:'水',         formula:'H2O',    smiles:'O',                    mw:18.02,  cat:'無機',   desc:'生命に不可欠な溶媒。地球上で最も重要な分子。'},
+    {name:'二酸化炭素', formula:'CO2',    smiles:'O=C=O',                mw:44.01,  cat:'無機',   desc:'温室効果ガス。植物の光合成の原料。'},
+    {name:'アンモニア', formula:'NH3',    smiles:'N',                    mw:17.03,  cat:'無機',   desc:'肥料の原料。窒素固定の代表的産物。'},
+    {name:'過酸化水素', formula:'H2O2',   smiles:'OO',                   mw:34.01,  cat:'無機',   desc:'漂白剤・消毒液として使用される酸化剤。'},
+    {name:'硫酸',       formula:'H2SO4',  smiles:'OS(=O)(=O)O',          mw:98.08,  cat:'無機',   desc:'化学工業で最も大量に製造される強酸。'},
+    {name:'硝酸',       formula:'HNO3',   smiles:'O[N+](=O)[O-]',        mw:63.01,  cat:'無機',   desc:'爆薬・肥料製造に使われる強酸化性の酸。'},
+    {name:'一酸化炭素', formula:'CO',     smiles:'[C-]#[O+]',            mw:28.01,  cat:'無機',   desc:'不完全燃焼で発生する無色・無臭の有毒ガス。'},
+    {name:'塩素',       formula:'Cl2',    smiles:'ClCl',                 mw:70.90,  cat:'無機',   desc:'殺菌・漂白に使われる黄緑色の気体。'},
+  ]},
+  { label:'鎖式炭化水素', items:[
+    {name:'メタン',     formula:'CH4',    smiles:'C',                    mw:16.04,  cat:'有機',   desc:'天然ガスの主成分。最も単純な炭化水素。'},
+    {name:'エタン',     formula:'C2H6',   smiles:'CC',                   mw:30.07,  cat:'有機',   desc:'天然ガスに含まれる飽和炭化水素。'},
+    {name:'プロパン',   formula:'C3H8',   smiles:'CCC',                  mw:44.10,  cat:'有機',   desc:'LPガスの主成分。家庭用燃料として使用。'},
+    {name:'エチレン',   formula:'C2H4',   smiles:'C=C',                  mw:28.05,  cat:'有機',   desc:'植物の熟成促進ホルモン兼プラスチック原料。'},
+    {name:'アセチレン', formula:'C2H2',   smiles:'C#C',                  mw:26.04,  cat:'有機',   desc:'溶接・切断に使われる可燃性の気体。'},
+  ]},
+  { label:'アルコール・酸', items:[
+    {name:'メタノール', formula:'CH4O',   smiles:'CO',                   mw:32.04,  cat:'有機',   desc:'燃料・溶媒として使用。飲用すると失明・死亡の危険。'},
+    {name:'エタノール', formula:'C2H6O',  smiles:'CCO',                  mw:46.07,  cat:'有機',   desc:'アルコール飲料・消毒・燃料に使用される。'},
+    {name:'酢酸',       formula:'C2H4O2', smiles:'CC(=O)O',              mw:60.05,  cat:'有機',   desc:'酢の主成分。食品・化学工業の重要原料。'},
+    {name:'アセトン',   formula:'C3H6O',  smiles:'CC(C)=O',              mw:58.08,  cat:'有機',   desc:'マニキュア除光液・溶媒として広く利用。'},
+    {name:'グリセリン', formula:'C3H8O3', smiles:'OCC(O)CO',             mw:92.09,  cat:'有機',   desc:'化粧品・医薬品・食品添加物として汎用。'},
+  ]},
+  { label:'芳香族化合物', items:[
+    {name:'ベンゼン',   formula:'C6H6',   smiles:'c1ccccc1',             mw:78.11,  cat:'有機',   desc:'芳香族化合物の基本骨格。有機合成の出発原料。'},
+    {name:'トルエン',   formula:'C7H8',   smiles:'Cc1ccccc1',            mw:92.14,  cat:'有機',   desc:'溶媒として使用。TNT爆薬の原料。'},
+    {name:'フェノール', formula:'C6H6O',  smiles:'Oc1ccccc1',            mw:94.11,  cat:'有機',   desc:'消毒薬・フェノール樹脂（プラスチック）の原料。'},
+    {name:'ナフタレン', formula:'C10H8',  smiles:'c1ccc2ccccc2c1',       mw:128.17, cat:'有機',   desc:'防虫剤・染料の原料。縮合二環芳香族。'},
+    {name:'アニリン',   formula:'C6H7N',  smiles:'Nc1ccccc1',            mw:93.13,  cat:'有機',   desc:'染料・医薬品・農薬の原料となるアミン。'},
+  ]},
+  { label:'薬・生体分子', items:[
+    {name:'アスピリン',  formula:'C9H8O4',    smiles:'CC(=O)Oc1ccccc1C(=O)O',                    mw:180.16, cat:'医薬品',   desc:'解熱鎮痛薬。血小板凝集を抑え血栓を予防。'},
+    {name:'カフェイン',  formula:'C8H10N4O2', smiles:'CN1C=NC2=C1C(=O)N(C(=O)N2C)C',             mw:194.19, cat:'天然物',   desc:'コーヒー・お茶に含まれる覚醒・興奮物質。'},
+    {name:'グルコース',  formula:'C6H12O6',   smiles:'OC[C@H]1OC(O)[C@H](O)[C@@H](O)[C@@H]1O',   mw:180.16, cat:'生体分子', desc:'細胞のエネルギー源となる最重要な単糖類。'},
+    {name:'アドレナリン',formula:'C9H13NO3',  smiles:'CNC[C@@H](O)c1ccc(O)c(O)c1',               mw:183.21, cat:'生体分子', desc:'ストレス時に分泌される副腎髄質ホルモン。'},
+    {name:'ドーパミン',  formula:'C8H11NO2',  smiles:'NCCc1ccc(O)c(O)c1',                         mw:153.18, cat:'生体分子', desc:'快楽・報酬・意欲に関わる神経伝達物質。'},
+    {name:'ビタミンC',   formula:'C6H8O6',    smiles:'OC[C@H](O)[C@H]1OC(=O)C(O)=C1O',           mw:176.12, cat:'生体分子', desc:'抗酸化ビタミン。コラーゲン合成に必須。'},
+  ]},
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let drawer = null;
+let scale = 1, tx = 0, ty = 0;
+let dragging = false, lastMX = 0, lastMY = 0;
+let currentComp = {};
+const CANVAS_W = 620, CANVAS_H = 500;
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  drawer = new SmilesDrawer.Drawer({
+    width: CANVAS_W, height: CANVAS_H,
+    bondThickness: 1.6, bondLength: 32, shortBondLength: 0.85,
+    atomVisualization: 'default',
+    themes: { dark: {
+      C:'#b0bec5', O:'#ef5350', N:'#42a5f5', H:'#78909c',
+      S:'#ffca28', P:'#ff8f00', F:'#aed581', Cl:'#66bb6a',
+      Br:'#bf360c', I:'#ce93d8', BACKGROUND:'#161b22',
+    }}
+  });
+  buildPresets();
+  setupInteraction();
+  buildPeriodicTable();
+  buildLegend();
+  document.getElementById('smiles-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') drawFromInput();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closePalette();
+  });
+  loadMolecule(CATEGORIES[3].items[0], null);
+});
+
+// ── Periodic table ────────────────────────────────────────────────────────────
+function buildPeriodicTable() {
+  const grid = document.getElementById('pt-grid');
+  const byPos = {};
+  ALL_ELEMENTS.forEach(e => { byPos[`${e.row},${e.col}`] = e; });
+
+  // Rows 1–7: main table
+  for (let r = 1; r <= 7; r++) {
+    for (let c = 1; c <= 18; c++) {
+      const el = byPos[`${r},${c}`];
+      const cell = document.createElement('div');
+      cell.style.gridRow = r;
+      cell.style.gridColumn = c;
+
+      if ((r === 6 && c === 3) || (r === 7 && c === 3)) {
+        cell.className = 'pt-cell pt-placeholder';
+        cell.style.background = '#1a2030';
+        cell.style.color = '#8b949e';
+        cell.style.fontSize = '0.55rem';
+        cell.textContent = r === 6 ? '57–71' : '89–103';
+      } else if (el) {
+        makeCell(cell, el);
+      } else {
+        cell.className = 'pt-cell pt-empty';
+      }
+      grid.appendChild(cell);
+    }
+  }
+
+  // Gap row (row 8 in grid = 10px via template)
+  const gap = document.createElement('div');
+  gap.style.gridRow = 8; gap.style.gridColumn = '1/19';
+  grid.appendChild(gap);
+
+  // Lanthanoids (grid row 9) and Actinoids (grid row 10)
+  for (let r = 9; r <= 10; r++) {
+    // Label in col 1
+    const lbl = document.createElement('div');
+    lbl.style.gridRow = r; lbl.style.gridColumn = '1/3';
+    lbl.style.display = 'flex'; lbl.style.alignItems = 'center';
+    lbl.style.justifyContent = 'center';
+    lbl.style.fontSize = '0.55rem'; lbl.style.color = '#8b949e';
+    lbl.textContent = r === 9 ? 'ランタノイド' : 'アクチノイド';
+    grid.appendChild(lbl);
+
+    for (let c = 3; c <= 17; c++) {
+      const el = byPos[`${r},${c}`];
+      if (!el) continue;
+      const cell = document.createElement('div');
+      cell.style.gridRow = r; cell.style.gridColumn = c;
+      makeCell(cell, el);
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function makeCell(cell, el) {
+  cell.className = 'pt-cell';
+  cell.dataset.sym = el.sym;
+  const lum = hexLum(el.color);
+  cell.style.background = el.color;
+  cell.style.color = lum > 0.42 ? '#111' : '#eee';
+  cell.innerHTML = `<span class="pt-no">${el.no}</span><span class="pt-sym">${el.sym}</span>`;
+  cell.addEventListener('mouseenter', () => showElemDetail(el));
+  cell.addEventListener('click', () => showElemDetail(el));
+}
+
+function buildLegend() {
+  const leg = document.getElementById('pt-legend');
+  for (const [key, val] of Object.entries(CAT_LABELS)) {
+    const item = document.createElement('div');
+    item.className = 'pt-legend-item';
+    item.innerHTML = `<div class="pt-legend-dot" style="background:${val.color}"></div>${val.ja}`;
+    leg.appendChild(item);
+  }
+}
+
+function showElemDetail(el) {
+  const lum = hexLum(el.color);
+  document.getElementById('pt-swatch').style.background = el.color;
+  document.getElementById('pt-swatch').style.color = lum > 0.42 ? '#111' : '#eee';
+  document.getElementById('pt-swatch').textContent = el.sym;
+  document.getElementById('pt-dname').textContent = `${el.sym}  ${el.ja}`;
+  document.getElementById('pt-dsub').textContent =
+    `${CAT_LABELS[el.cat]?.ja ?? el.cat}　／　Jmol CPK カラー: ${el.color.toUpperCase()}`;
+  document.getElementById('pt-dno').textContent = el.no;
+  document.getElementById('pt-dwt').textContent = el.wt;
+  document.getElementById('pt-dstats').style.display = 'flex';
+}
+
+function openPalette() {
+  document.getElementById('palette-overlay').classList.add('open');
+  highlightMolElements();
+}
+function closePalette() {
+  document.getElementById('palette-overlay').classList.remove('open');
+}
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('palette-overlay')) closePalette();
+}
+
+function highlightMolElements() {
+  document.querySelectorAll('.pt-cell').forEach(c => c.classList.remove('in-mol'));
+  for (const sym of Object.keys(currentComp)) {
+    document.querySelectorAll(`.pt-cell[data-sym="${sym}"]`).forEach(c => c.classList.add('in-mol'));
+  }
+}
+
+// ── Presets ───────────────────────────────────────────────────────────────────
+function buildPresets() {
+  const container = document.getElementById('presets');
+  const datalist  = document.getElementById('mol-list');
+  for (const cat of CATEGORIES) {
+    const lbl = document.createElement('div');
+    lbl.className = 'cat-label'; lbl.textContent = cat.label;
+    container.appendChild(lbl);
+    const grid = document.createElement('div');
+    grid.className = 'mol-grid';
+    for (const mol of cat.items) {
+      const btn = document.createElement('button');
+      btn.className = 'mol-btn'; btn.textContent = mol.name; btn.dataset.name = mol.name;
+      btn.addEventListener('click', () => loadMolecule(mol, btn));
+      grid.appendChild(btn);
+      const opt = document.createElement('option'); opt.value = mol.name;
+      datalist.appendChild(opt);
+    }
+    container.appendChild(grid);
+  }
+}
+
+// ── Canvas interaction ────────────────────────────────────────────────────────
+function setupInteraction() {
+  const wrapper = document.getElementById('canvas-wrapper');
+  wrapper.addEventListener('wheel', e => {
+    e.preventDefault();
+    scale = Math.max(0.15, Math.min(10, scale * (e.deltaY > 0 ? 0.85 : 1.18)));
+    applyTransform();
+  }, { passive: false });
+  wrapper.addEventListener('mousedown', e => { dragging=true; lastMX=e.clientX; lastMY=e.clientY; });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    tx+=e.clientX-lastMX; ty+=e.clientY-lastMY;
+    lastMX=e.clientX; lastMY=e.clientY; applyTransform();
+  });
+  window.addEventListener('mouseup', () => { dragging=false; });
+  let lastPinch=null;
+  wrapper.addEventListener('touchstart', e => {
+    if(e.touches.length===1){dragging=true;lastMX=e.touches[0].clientX;lastMY=e.touches[0].clientY;}
+  });
+  wrapper.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if(e.touches.length===1&&dragging){
+      tx+=e.touches[0].clientX-lastMX;ty+=e.touches[0].clientY-lastMY;
+      lastMX=e.touches[0].clientX;lastMY=e.touches[0].clientY;applyTransform();
+    } else if(e.touches.length===2){
+      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+      if(lastPinch){scale=Math.max(0.15,Math.min(10,scale*d/lastPinch));applyTransform();}
+      lastPinch=d;
+    }
+  },{passive:false});
+  wrapper.addEventListener('touchend',()=>{dragging=false;lastPinch=null;});
+}
+
+function applyTransform() {
+  document.getElementById('mol-canvas').style.transform =
+    `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(${scale})`;
+}
+function zoom(f){scale=Math.max(0.15,Math.min(10,scale*f));applyTransform();}
+function resetView(){scale=1;tx=0;ty=0;applyTransform();}
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
+function loadMolecule(mol, btn) {
+  document.querySelectorAll('.mol-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.getElementById('smiles-input').value = mol.smiles;
+  hideError();
+  renderSmiles(mol.smiles, ()=>updatePanel(mol));
+}
+
+function drawFromInput() {
+  const raw = document.getElementById('smiles-input').value.trim();
+  if(!raw) return;
+  hideError();
+  for(const cat of CATEGORIES){
+    const found = cat.items.find(m=>m.name===raw);
+    if(found){ loadMolecule(found, document.querySelector(`[data-name="${found.name}"]`)); return; }
+  }
+  document.querySelectorAll('.mol-btn').forEach(b=>b.classList.remove('active'));
+  const custom = {name:'カスタム',formula:derivePlainFormula(raw),smiles:raw,mw:null,cat:'SMILES入力',desc:'ユーザー入力のSMILES文字列'};
+  renderSmiles(raw, ()=>updatePanel(custom));
+}
+
+function renderSmiles(smiles, onSuccess) {
+  SmilesDrawer.parse(smiles, tree => {
+    const c = document.getElementById('mol-canvas');
+    c.width=CANVAS_W; c.height=CANVAS_H; c.style.display='block';
+    document.getElementById('placeholder').style.display='none';
+    resetView();
+    drawer.draw(tree,'mol-canvas','dark',false);
+    if(onSuccess) onSuccess();
+  }, err => showError('解析エラー: '+(err||'無効なSMILES')));
+}
+
+// ── Info panel ────────────────────────────────────────────────────────────────
+function updatePanel(mol) {
+  document.getElementById('empty-info').style.display='none';
+  document.getElementById('mol-info').style.display='block';
+  document.getElementById('info-name').textContent   = mol.name;
+  document.getElementById('info-formula').innerHTML  = fmtFormula(mol.formula||'—');
+  document.getElementById('info-desc').textContent   = mol.desc||'—';
+  document.getElementById('info-mw').textContent     = mol.mw ? mol.mw+' g/mol' : '—';
+  document.getElementById('info-cat').textContent    = mol.cat||'—';
+  document.getElementById('info-smiles').textContent = mol.smiles;
+  currentComp = parseFormula(mol.formula||'');
+  const types = Object.keys(currentComp).length;
+  const total = Object.values(currentComp).reduce((s,n)=>s+n,0);
+  document.getElementById('info-elems').textContent = types ? types+' 種' : '—';
+  document.getElementById('info-atoms').textContent = total ? total+' 個' : '—';
+  renderElemList(currentComp);
+}
+
+function renderElemList(comp) {
+  const list = document.getElementById('elem-list');
+  list.innerHTML = '';
+  const order = ['C','H'];
+  const keys = Object.keys(comp).sort((a,b)=>{
+    const ia=order.indexOf(a),ib=order.indexOf(b);
+    if(ia>=0&&ib>=0)return ia-ib; if(ia>=0)return -1; if(ib>=0)return 1;
+    return a.localeCompare(b);
+  });
+  for(const sym of keys){
+    const count=comp[sym], el=ELEM_MAP[sym];
+    const color=el?el.color:'#666', lum=hexLum(color);
+    const item=document.createElement('div');
+    item.className='element-item';
+    item.innerHTML=`
+      <div class="elem-badge" style="background:${color};color:${lum>0.42?'#111':'#eee'}">${sym}</div>
+      <div class="elem-info">
+        <div class="elem-name">${el?el.ja:sym}</div>
+        <div class="elem-detail">${el?`原子番号 ${el.no} · ${el.wt} g/mol`:''}</div>
+      </div>
+      <div class="elem-count">×${count}</div>`;
+    list.appendChild(item);
+  }
+  if(!keys.length) list.innerHTML='<div style="color:var(--text-dim);font-size:.8rem">組成情報なし</div>';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtFormula(f){ return f.replace(/(\d+)/g,'<sub>$1</sub>'); }
+function parseFormula(f){
+  const elems={}, re=/([A-Z][a-z]?)(\d*)/g; let m;
+  while((m=re.exec(f))!==null) if(m[1]) elems[m[1]]=(elems[m[1]]||0)+(parseInt(m[2])||1);
+  return elems;
+}
+function derivePlainFormula(smiles){
+  const counts={}, re=/\[([A-Z][a-z]?)[\d@H+-]*\]|([A-Z][a-z]?)/g; let m;
+  while((m=re.exec(smiles))!==null){const s=m[1]||m[2];if(s&&s!=='R')counts[s]=(counts[s]||0)+1;}
+  return Object.entries(counts).map(([s,n])=>s+(n>1?n:'')).join('');
+}
+function hexLum(hex){
+  const r=parseInt(hex.slice(1,3),16)/255, g=parseInt(hex.slice(3,5),16)/255, b=parseInt(hex.slice(5,7),16)/255;
+  return 0.299*r+0.587*g+0.114*b;
+}
+function showError(msg){const el=document.getElementById('error-msg');el.textContent=msg;el.style.display='block';}
+function hideError(){document.getElementById('error-msg').style.display='none';}
+</script>
+</body>
+</html>
