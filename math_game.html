@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Math Quest / 数学クエスト</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#0d1117;color:#e2e8f0;font-family:'Helvetica Neue',system-ui,sans-serif;overflow:hidden}
+
+/* ── Header ── */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #1e2836;flex-shrink:0}
+.logo{font-size:14px;font-weight:700;letter-spacing:.04em;color:#fff}
+.logo span{color:#fb7185}
+.hdr-r{display:flex;align-items:center;gap:10px}
+.lang-btn{background:#1e2836;border:1px solid #2d3a4a;color:#94a3b8;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;cursor:pointer;transition:all .15s}
+.lang-btn:hover{background:#2d3a4a;color:#fff}
+.score-box{background:#1e2836;border:1px solid #2d3a4a;border-radius:8px;padding:3px 10px;font-size:12px;font-family:monospace;color:#fbbf24}
+
+/* ── Stage select ── */
+#screen-stage{display:flex;flex-direction:column;height:calc(100vh - 49px);overflow-y:auto}
+.stage-title{text-align:center;padding:20px 14px 10px;font-size:13px;color:#64748b;letter-spacing:.06em}
+.stages{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 12px 16px}
+.stage-card{background:#0f1923;border:2px solid #1e2836;border-radius:14px;padding:16px 12px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.stage-card.locked{opacity:.45;cursor:not-allowed}
+.stage-card:not(.locked):hover{border-color:var(--c);transform:translateY(-2px)}
+.stage-card .sc-icon{font-size:32px;margin-bottom:8px}
+.stage-card .sc-name{font-size:13px;font-weight:700;color:var(--c);margin-bottom:3px}
+.stage-card .sc-formula{font-size:10px;font-family:monospace;color:#4a5568;line-height:1.4}
+.stage-card .sc-stars{font-size:14px;letter-spacing:2px;margin-top:6px}
+.stage-card .sc-lock{position:absolute;top:10px;right:10px;font-size:16px;opacity:.5}
+.stage-card .sc-best{font-size:10px;color:#4a5568;margin-top:4px}
+
+/* ── Game screen ── */
+#screen-game{display:none;flex-direction:column;height:calc(100vh - 49px)}
+.game-hdr{padding:8px 14px;border-bottom:1px solid #1e2836;flex-shrink:0;display:flex;align-items:center;gap:8px}
+.back-btn{background:none;border:1px solid #2d3a4a;color:#64748b;font-size:11px;padding:4px 10px;border-radius:20px;cursor:pointer}
+.back-btn:hover{color:#fff;border-color:#64748b}
+.game-info{flex:1;display:flex;align-items:center;gap:10px;justify-content:flex-end}
+.timer-bar-wrap{flex:1;max-width:140px;height:8px;background:#1e2836;border-radius:4px;overflow:hidden}
+.timer-bar{height:100%;border-radius:4px;transition:width .1s linear,background .3s}
+.q-counter{font-size:11px;font-family:monospace;color:#64748b;white-space:nowrap}
+.combo-badge{font-size:11px;font-weight:700;color:#fbbf24;background:#2a2000;border:1px solid #fbbf2440;border-radius:12px;padding:2px 8px;display:none}
+.combo-badge.on{display:block}
+
+.target-box{margin:10px 14px 6px;background:#0f1923;border:1px solid #1e2836;border-radius:12px;padding:12px 14px;flex-shrink:0}
+.target-label{font-size:10px;color:#64748b;margin-bottom:3px;letter-spacing:.04em}
+.target-val{font-size:22px;font-weight:700;font-family:monospace;color:#fff;letter-spacing:.02em}
+.target-sub{font-size:11px;color:#4a5568;margin-top:2px;font-family:monospace}
+
+.cw{flex:1;min-height:0;position:relative;background:#0d1117}
+canvas{display:block;width:100%;height:100%}
+
+.ctrl{padding:8px 14px;background:#0f1923;border-top:1px solid #1e2836;flex-shrink:0}
+.cr{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.cr:last-child{margin-bottom:0}
+.cl{font-size:11px;font-family:monospace;color:#64748b;width:80px;flex-shrink:0}
+.cr input[type=range]{flex:1;height:28px;cursor:pointer;accent-color:var(--ac,#fb7185)}
+.vl{font-size:12px;font-family:monospace;width:38px;text-align:right;color:#e2e8f0;flex-shrink:0}
+
+.submit-row{padding:8px 14px;flex-shrink:0;display:flex;gap:8px}
+.submit-btn{flex:1;padding:11px;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;background:var(--c,#fb7185);color:#fff;transition:all .15s;letter-spacing:.04em}
+.submit-btn:active{transform:scale(.97)}
+.hint-btn{background:#1e2836;border:1px solid #2d3a4a;color:#64748b;font-size:12px;padding:11px 14px;border-radius:12px;cursor:pointer;white-space:nowrap}
+
+/* ── Result overlay ── */
+.overlay{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:100;display:none}
+.overlay.on{display:flex}
+.result-box{background:#0f1923;border:2px solid var(--c,#fb7185);border-radius:20px;padding:28px 24px;text-align:center;max-width:320px;width:90%;animation:pop .25s}
+@keyframes pop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+.result-icon{font-size:52px;margin-bottom:12px}
+.result-title{font-size:20px;font-weight:700;color:var(--c,#fb7185);margin-bottom:6px}
+.result-pts{font-size:28px;font-weight:700;font-family:monospace;color:#fbbf24;margin-bottom:4px}
+.result-detail{font-size:12px;color:#64748b;margin-bottom:16px;line-height:1.6}
+.result-btn{width:100%;padding:12px;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;background:var(--c,#fb7185);color:#fff;margin-bottom:8px}
+.result-btn2{width:100%;padding:12px;border:1px solid #2d3a4a;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;background:none;color:#94a3b8}
+
+/* ── Stage clear overlay ── */
+.clear-box{background:#0f1923;border:2px solid #fbbf24;border-radius:20px;padding:32px 24px;text-align:center;max-width:320px;width:90%;animation:pop .3s}
+.clear-stars{font-size:40px;letter-spacing:4px;margin-bottom:12px}
+.clear-title{font-size:22px;font-weight:700;color:#fbbf24;margin-bottom:6px}
+.clear-score{font-size:32px;font-weight:700;font-family:monospace;color:#fff;margin-bottom:4px}
+.clear-detail{font-size:12px;color:#64748b;margin-bottom:16px;line-height:1.6}
+
+/* ── Feedback toast ── */
+.toast{position:fixed;top:60px;left:50%;transform:translateX(-50%) translateY(-20px);background:#1e2836;border:1px solid #2d3a4a;border-radius:24px;padding:8px 20px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;z-index:200;transition:all .25s;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Accuracy meter ── */
+.acc-meter{height:4px;background:#1e2836;border-radius:2px;overflow:hidden;margin-top:6px}
+.acc-fill{height:100%;border-radius:2px;transition:width .15s,background .15s}
+
+@media(max-width:400px){
+  .stages{grid-template-columns:1fr 1fr}
+  .stage-card{padding:12px 10px}
+  .stage-card .sc-icon{font-size:26px}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="logo">Math<span>Quest</span></div>
+  <div class="hdr-r">
+    <button class="lang-btn" onclick="toggleLang()">EN</button>
+    <div class="score-box">⭐ <span id="total-score">0</span></div>
+  </div>
+</div>
+
+<!-- Stage Select -->
+<div id="screen-stage">
+  <div class="stage-title" id="lbl-pick">ステージを選ぼう</div>
+  <div class="stages" id="stage-list"></div>
+</div>
+
+<!-- Game -->
+<div id="screen-game">
+  <div class="game-hdr">
+    <button class="back-btn" onclick="goStage()" id="lbl-back">← 戻る</button>
+    <div class="game-info">
+      <div class="combo-badge" id="combo-badge">x2 COMBO</div>
+      <div class="q-counter" id="q-counter">1 / 5</div>
+      <div class="timer-bar-wrap"><div class="timer-bar" id="timer-bar"></div></div>
+    </div>
+  </div>
+  <div class="target-box">
+    <div class="target-label" id="lbl-target">目標値</div>
+    <div class="target-val" id="target-display">—</div>
+    <div class="target-sub" id="target-sub"></div>
+    <div class="acc-meter"><div class="acc-fill" id="acc-fill"></div></div>
+  </div>
+  <div class="cw"><canvas id="gc"></canvas></div>
+  <div class="ctrl" id="ctrl-area"></div>
+  <div class="submit-row">
+    <button class="hint-btn" onclick="showHint()" id="lbl-hint">💡</button>
+    <button class="submit-btn" id="lbl-submit" onclick="submitAnswer()">答え合わせ</button>
+  </div>
+</div>
+
+<!-- Result overlay -->
+<div class="overlay" id="overlay-result">
+  <div class="result-box" id="result-box">
+    <div class="result-icon" id="res-icon">🎉</div>
+    <div class="result-title" id="res-title">正解！</div>
+    <div class="result-pts" id="res-pts">+150</div>
+    <div class="result-detail" id="res-detail"></div>
+    <button class="result-btn" id="res-next" onclick="nextQuestion()"></button>
+    <button class="result-btn2" id="res-stage" onclick="goStage()"></button>
+  </div>
+</div>
+
+<!-- Stage clear overlay -->
+<div class="overlay" id="overlay-clear">
+  <div class="clear-box">
+    <div class="clear-stars" id="clear-stars">⭐⭐⭐</div>
+    <div class="clear-title" id="clear-title">ステージクリア！</div>
+    <div class="clear-score" id="clear-score">1200pts</div>
+    <div class="clear-detail" id="clear-detail"></div>
+    <button class="result-btn" onclick="goStage()" id="clear-back">ステージ選択へ</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ────────────────────────────────────────────────
+// i18n
+// ────────────────────────────────────────────────
+const T = {
+  ja: {
+    pick:'ステージを選ぼう', back:'← 戻る', target:'目標値', hint:'💡 ヒント',
+    submit:'答え合わせ', correct:'正解！', wrong:'惜しい…', timeout:'時間切れ！',
+    nextQ:'次の問題へ', stageSelect:'ステージ選択へ', stageClear:'ステージクリア！',
+    clearBack:'ステージ選択へ', accuracy:'精度', combo:'コンボ',
+    bestScore:'ベストスコア', newRecord:'🏆 新記録！',
+    q:'問', of:'/',
+    stages:[
+      {name:'等差数列', formula:'Sₙ = n(a₁+aₙ)/2', tip:'ガウスの公式！項数×平均値'},
+      {name:'等比数列', formula:'Sₙ = a₁(1−rⁿ)/(1−r)', tip:'複利計算の基本'},
+      {name:'ベクトル', formula:'a⃗·b⃗ = |a||b|cosθ', tip:'内積=0で直交'},
+      {name:'微分・接線', formula:"f'(x) = lim(h→0) Δy/Δx", tip:'hを0に近づける'},
+    ],
+    hints:[
+      ['初項 a₁ と公差 d を変えてみよう','Sₙ = 項数 × 平均値 を思い出そう'],
+      ['公比 r が大きいほど急増する','r < 1 なら収束する'],
+      ['x成分とy成分を別々に考えよう','内積 = ax·bx + ay·by'],
+      ['x₀ の位置で接線の傾きが決まる','h を小さくすると真の傾きに近づく'],
+    ],
+    targetLabels:['目標の和 Sₙ =','目標の和 Sₙ =','目標の内積 a·b =','目標の接線の傾き f\'(x₀) ≈'],
+  },
+  en: {
+    pick:'Choose a Stage', back:'← Back', target:'Target', hint:'💡 Hint',
+    submit:'Check Answer', correct:'Correct!', wrong:'So close…', timeout:'Time\'s up!',
+    nextQ:'Next Question', stageSelect:'Stage Select', stageClear:'Stage Clear!',
+    clearBack:'Stage Select', accuracy:'Accuracy', combo:'Combo',
+    bestScore:'Best Score', newRecord:'🏆 New Record!',
+    q:'Q', of:'/',
+    stages:[
+      {name:'Arithmetic Seq.', formula:'Sₙ = n(a₁+aₙ)/2', tip:'Gauss\'s formula!'},
+      {name:'Geometric Seq.', formula:'Sₙ = a₁(1−rⁿ)/(1−r)', tip:'Compound interest basis'},
+      {name:'Vectors', formula:'a⃗·b⃗ = |a||b|cosθ', tip:'Dot product = 0 → orthogonal'},
+      {name:'Derivative', formula:"f'(x) = lim(h→0) Δy/Δx", tip:'h → 0 approaches tangent'},
+    ],
+    hints:[
+      ['Try changing a₁ and d','Remember: Sₙ = n × average'],
+      ['Larger r grows faster','r < 1 converges'],
+      ['Think x and y separately','Dot product = ax·bx + ay·by'],
+      ['x₀ determines the tangent slope','Smaller h → closer to true slope'],
+    ],
+    targetLabels:['Target Sum Sₙ =','Target Sum Sₙ =','Target Dot Product a·b =','Target Slope f\'(x₀) ≈'],
+  }
+};
+
+let lang = 'ja';
+let totalScore = 0;
+let stageScores = [null, null, null, null];
+let stageUnlocked = [true, false, false, false];
+
+const STAGE_COLORS = ['#fb7185','#f97316','#fbbf24','#06b6d4'];
+const STAGE_ICONS  = ['📐','📈','➡️','📉'];
+const QUESTIONS_PER_STAGE = 5;
+const TIME_LIMIT = 18; // seconds
+
+let currentStage = 0;
+let currentQ = 0;
+let questions = [];
+let timerInterval = null;
+let timeLeft = TIME_LIMIT;
+let combo = 0;
+let stageSessionScore = 0;
+let hintUsed = false;
+let currentVars = {};
+
+function t(key){ return T[lang][key]; }
+
+function toggleLang(){
+  lang = lang === 'ja' ? 'en' : 'ja';
+  document.querySelector('.lang-btn').textContent = lang === 'ja' ? 'EN' : 'JA';
+  renderStageSelect();
+  updateStaticLabels();
+}
+
+function updateStaticLabels(){
+  document.getElementById('lbl-pick').textContent = t('pick');
+  document.getElementById('lbl-back').textContent = t('back');
+  document.getElementById('lbl-target').textContent = t('target');
+  document.getElementById('lbl-hint').textContent = t('hint');
+  document.getElementById('lbl-submit').textContent = t('submit');
+}
+
+// ────────────────────────────────────────────────
+// Stage Select
+// ────────────────────────────────────────────────
+function renderStageSelect(){
+  document.getElementById('lbl-pick').textContent = t('pick');
+  const list = document.getElementById('stage-list');
+  list.innerHTML = '';
+  T[lang].stages.forEach((s,i)=>{
+    const sc = stageScores[i];
+    const stars = sc === null ? '' : sc >= 1200 ? '⭐⭐⭐' : sc >= 800 ? '⭐⭐' : '⭐';
+    const locked = !stageUnlocked[i];
+    const card = document.createElement('div');
+    card.className = 'stage-card' + (locked ? ' locked' : '');
+    card.style.setProperty('--c', STAGE_COLORS[i]);
+    card.innerHTML = `
+      ${locked ? '<div class="sc-lock">🔒</div>' : ''}
+      <div class="sc-icon">${STAGE_ICONS[i]}</div>
+      <div class="sc-name">${s.name}</div>
+      <div class="sc-formula">${s.formula}</div>
+      <div class="sc-stars">${stars}</div>
+      ${sc !== null ? `<div class="sc-best">${t('bestScore')}: ${sc}</div>` : ''}
+    `;
+    if(!locked) card.onclick = () => startStage(i);
+    list.appendChild(card);
+  });
+}
+
+function goStage(){
+  document.getElementById('screen-game').style.display = 'none';
+  document.getElementById('screen-stage').style.display = 'flex';
+  document.getElementById('overlay-result').classList.remove('on');
+  document.getElementById('overlay-clear').classList.remove('on');
+  stopTimer();
+  renderStageSelect();
+}
+
+// ────────────────────────────────────────────────
+// Question generation
+// ────────────────────────────────────────────────
+function rnd(a,b){ return Math.round(a + Math.random()*(b-a)); }
+function rndF(a,b,step){ return Math.round((a + Math.random()*(b-a))/step)*step; }
+
+function genQuestions(stage){
+  const qs = [];
+  for(let i=0;i<QUESTIONS_PER_STAGE;i++){
+    const diff = Math.floor(i/2); // 0,0,1,1,2
+    qs.push(genQ(stage, diff));
+  }
+  return qs;
+}
+
+function genQ(stage, diff){
+  if(stage === 0) return genAR(diff);
+  if(stage === 1) return genGE(diff);
+  if(stage === 2) return genVE(diff);
+  return genDE(diff);
+}
+
+function genAR(diff){
+  const a1 = rnd(1+diff, 8+diff*3);
+  const d  = rnd(1, 3+diff*2);
+  const n  = rnd(3+diff, 6+diff*2);
+  const an = a1 + (n-1)*d;
+  const Sn = Math.round(n*(a1+an)/2);
+  return {
+    stage:0, target:Sn, label: T[lang].targetLabels[0],
+    vars:{ ar_a1:a1, ar_d:d, ar_n:n },
+    defaults:{ ar_a1:rnd(1,5), ar_d:rnd(1,3), ar_n:rnd(2,5) },
+    sliders:[
+      {id:'ar_a1', label_ja:'初項 a₁', label_en:'First a₁', min:-10, max:20, step:1, val:null},
+      {id:'ar_d',  label_ja:'公差 d',  label_en:'Common d',  min:-5,  max:10, step:1, val:null},
+      {id:'ar_n',  label_ja:'項数 n',  label_en:'Terms n',   min:2,   max:12, step:1, val:null},
+    ],
+    calc(v){ const a=v.ar_a1,d2=v.ar_d,nn=Math.round(v.ar_n),an2=a+(nn-1)*d2; return Math.round(nn*(a+an2)/2); },
+    tolerance: Math.max(1, Math.floor(Math.abs(Sn)*0.05)),
+  };
+}
+
+function genGE(diff){
+  const a1 = rnd(1, 4+diff);
+  const r  = [1.5,2,2.5,3][diff] || 2;
+  const n  = rnd(3, 5+diff);
+  const Sn = Math.round(Math.abs(r-1)<.001 ? a1*n : a1*(1-Math.pow(r,n))/(1-r));
+  return {
+    stage:1, target:Sn, label: T[lang].targetLabels[1],
+    vars:{ ge_a1:a1, ge_r:r, ge_n:n },
+    defaults:{ ge_a1:1, ge_r:1.5, ge_n:3 },
+    sliders:[
+      {id:'ge_a1', label_ja:'初項 a₁', label_en:'First a₁', min:1, max:16, step:1,   val:null},
+      {id:'ge_r',  label_ja:'公比 r',  label_en:'Ratio r',   min:.1,max:3,  step:.1,  val:null},
+      {id:'ge_n',  label_ja:'項数 n',  label_en:'Terms n',   min:2, max:10, step:1,   val:null},
+    ],
+    calc(v){ const a=v.ge_a1,r2=v.ge_r,nn=Math.round(v.ge_n); return Math.round(Math.abs(r2-1)<.001?a*nn:a*(1-Math.pow(r2,nn))/(1-r2)); },
+    tolerance: Math.max(2, Math.floor(Math.abs(Sn)*0.06)),
+  };
+}
+
+function genVE(diff){
+  const ax=rnd(-4+diff,-1), ay=rnd(1,4), bx=rnd(1,4), by=rnd(-4+diff,-1);
+  const dot = ax*bx+ay*by;
+  return {
+    stage:2, target:dot, label: T[lang].targetLabels[2],
+    vars:{ ve_ax:ax, ve_ay:ay, ve_bx:bx, ve_by:by },
+    defaults:{ ve_ax:2, ve_ay:2, ve_bx:2, ve_by:2 },
+    sliders:[
+      {id:'ve_ax', label_ja:'a の x', label_en:'a x', min:-5, max:5, step:.5, val:null},
+      {id:'ve_ay', label_ja:'a の y', label_en:'a y', min:-5, max:5, step:.5, val:null},
+      {id:'ve_bx', label_ja:'b の x', label_en:'b x', min:-5, max:5, step:.5, val:null},
+      {id:'ve_by', label_ja:'b の y', label_en:'b y', min:-5, max:5, step:.5, val:null},
+    ],
+    calc(v){ return parseFloat((v.ve_ax*v.ve_bx+v.ve_ay*v.ve_by).toFixed(1)); },
+    tolerance: 0.3,
+  };
+}
+
+function genDE(diff){
+  const fns = [
+    {name:'x²', f:x=>x*x, df:x=>2*x},
+    {name:'x³', f:x=>x*x*x, df:x=>3*x*x},
+    {name:'sinx', f:x=>Math.sin(x), df:x=>Math.cos(x)},
+  ];
+  const fi = diff % 3;
+  const fn = fns[fi];
+  const x0 = rndF(-2+diff*.5, 2-diff*.5, .5) || .5;
+  const slope = parseFloat(fn.df(x0).toFixed(2));
+  return {
+    stage:3, target:slope, label: T[lang].targetLabels[3],
+    vars:{ de_x0:x0, de_h:0.05, de_fn:fi },
+    defaults:{ de_x0:0, de_h:2, de_fn:fi },
+    sliders:[
+      {id:'de_x0', label_ja:'点 x₀',    label_en:'Point x₀', min:-3, max:3, step:.1, val:null},
+      {id:'de_h',  label_ja:'差分 h',   label_en:'Step h',    min:.01,max:3, step:.01,val:null},
+      {id:'de_fn', label_ja:'関数',     label_en:'Function',  min:0,  max:2, step:1,  val:fi},
+    ],
+    calc(v){
+      const Fs=[x=>x*x,x=>x*x*x,x=>Math.sin(x)];
+      const f=Fs[Math.round(v.de_fn)];
+      const x=v.de_x0, h=v.de_h;
+      return parseFloat(((f(x+h)-f(x))/h).toFixed(4));
+    },
+    tolerance: 0.15 + diff*0.05,
+  };
+}
+
+// ────────────────────────────────────────────────
+// Game flow
+// ────────────────────────────────────────────────
+function startStage(stageIdx){
+  currentStage = stageIdx;
+  currentQ = 0;
+  combo = 0;
+  stageSessionScore = 0;
+  questions = genQuestions(stageIdx);
+
+  document.getElementById('screen-stage').style.display = 'none';
+  const sg = document.getElementById('screen-game');
+  sg.style.display = 'flex';
+  sg.style.setProperty('--c', STAGE_COLORS[stageIdx]);
+  sg.style.setProperty('--ac', STAGE_COLORS[stageIdx]);
+
+  loadQuestion();
+}
+
+function loadQuestion(){
+  hintUsed = false;
+  const q = questions[currentQ];
+
+  // update label with current lang
+  q.label = T[lang].targetLabels[currentStage];
+
+  // q counter
+  document.getElementById('q-counter').textContent =
+    `${t('q')}${currentQ+1} ${t('of')} ${QUESTIONS_PER_STAGE}`;
+
+  // target
+  document.getElementById('lbl-target').textContent = q.label;
+  document.getElementById('target-display').textContent =
+    typeof q.target === 'number' ? (Number.isInteger(q.target) ? q.target : q.target.toFixed(2)) : q.target;
+  document.getElementById('target-sub').textContent = `± ${q.tolerance}`;
+
+  // build sliders with default (not answer) values
+  currentVars = {...q.defaults};
+  buildControls(q);
+  updateAccuracy(q);
+  drawCanvas(currentStage);
+
+  // timer
+  startTimer();
+}
+
+function buildControls(q){
+  const ctrl = document.getElementById('ctrl-area');
+  ctrl.innerHTML = '';
+  q.sliders.forEach(sl=>{
+    const initVal = currentVars[sl.id] !== undefined ? currentVars[sl.id] : sl.min;
+    const label = lang === 'ja' ? sl.label_ja : sl.label_en;
+    const step = sl.step;
+    const decimals = step < 0.05 ? 2 : step < 1 ? 1 : 0;
+    const row = document.createElement('div');
+    row.className = 'cr';
+    row.innerHTML = `
+      <span class="cl">${label}</span>
+      <input type="range" id="g_${sl.id}" min="${sl.min}" max="${sl.max}" step="${step}" value="${initVal}">
+      <span class="vl" id="gv_${sl.id}">${parseFloat(initVal).toFixed(decimals)}</span>
+    `;
+    const inp = row.querySelector('input');
+    inp.addEventListener('input', ()=>{
+      document.getElementById('gv_'+sl.id).textContent = parseFloat(inp.value).toFixed(decimals);
+      currentVars[sl.id] = parseFloat(inp.value);
+      updateAccuracy(q);
+      drawCanvas(currentStage);
+    });
+    ctrl.appendChild(row);
+  });
+}
+
+function updateAccuracy(q){
+  const cur = q.calc(currentVars);
+  const diff = Math.abs(cur - q.target);
+  const maxDiff = Math.abs(q.target) * 1.5 + 10;
+  const pct = Math.max(0, Math.min(100, 100 - (diff/maxDiff)*100));
+  const fill = document.getElementById('acc-fill');
+  fill.style.width = pct + '%';
+  fill.style.background = pct > 80 ? '#34d399' : pct > 50 ? '#fbbf24' : '#fb7185';
+}
+
+function submitAnswer(){
+  const q = questions[currentQ];
+  const cur = q.calc(currentVars);
+  const diff = Math.abs(cur - q.target);
+  const correct = diff <= q.tolerance;
+  stopTimer();
+
+  if(correct){
+    const timeBonus = Math.floor(timeLeft * 5);
+    const accuracyBonus = Math.floor(Math.max(0, (1 - diff/q.target)*50));
+    const comboBonus = combo >= 2 ? combo * 20 : 0;
+    const hintPenalty = hintUsed ? -30 : 0;
+    const pts = 100 + timeBonus + accuracyBonus + comboBonus + hintPenalty;
+    combo++;
+    stageSessionScore += pts;
+    totalScore += pts;
+    document.getElementById('total-score').textContent = totalScore;
+    showResult(true, pts, cur, diff);
+  } else {
+    combo = 0;
+    showResult(false, 0, cur, diff);
+  }
+  updateComboUI();
+}
+
+function showResult(correct, pts, cur, diff){
+  const ov = document.getElementById('overlay-result');
+  const box = document.getElementById('result-box');
+  box.style.setProperty('--c', STAGE_COLORS[currentStage]);
+  document.getElementById('res-icon').textContent = correct ? ['🎉','✨','🔥','🌟'][Math.floor(Math.random()*4)] : ['😅','💪','🤔'][Math.floor(Math.random()*3)];
+  document.getElementById('res-title').textContent = correct ? t('correct') : t('wrong');
+  document.getElementById('res-pts').textContent = correct ? `+${pts}` : `±0`;
+  document.getElementById('res-detail').innerHTML =
+    correct
+    ? `${t('accuracy')}: ${Math.round(100 - Math.abs(diff/questions[currentQ].target)*100)}%<br>
+       ${hintUsed ? '(ヒント使用 -30pt)' : ''}`
+    : `Your value: ${typeof cur==='number'&&!Number.isInteger(cur)?cur.toFixed(3):cur}<br>Target: ${questions[currentQ].target}`;
+  document.getElementById('res-next').textContent = currentQ < QUESTIONS_PER_STAGE-1 ? t('nextQ') : t('stageClear');
+  document.getElementById('res-stage').textContent = t('stageSelect');
+  ov.classList.add('on');
+}
+
+function nextQuestion(){
+  document.getElementById('overlay-result').classList.remove('on');
+  currentQ++;
+  if(currentQ >= QUESTIONS_PER_STAGE){
+    showStageClear();
+  } else {
+    loadQuestion();
+  }
+}
+
+function showStageClear(){
+  const prev = stageScores[currentStage];
+  const isNew = prev === null || stageSessionScore > prev;
+  if(isNew) stageScores[currentStage] = stageSessionScore;
+  if(currentStage < 3) stageUnlocked[currentStage+1] = true;
+
+  const stars = stageSessionScore >= 1200 ? '⭐⭐⭐' : stageSessionScore >= 800 ? '⭐⭐' : '⭐';
+  document.getElementById('clear-stars').textContent = stars;
+  document.getElementById('clear-title').textContent = t('stageClear');
+  document.getElementById('clear-score').textContent = stageSessionScore + 'pts';
+  document.getElementById('clear-detail').innerHTML =
+    `Total: ${totalScore}pts${isNew && prev!==null ? '<br>'+t('newRecord') : ''}`;
+  document.getElementById('clear-back').textContent = t('clearBack');
+  document.getElementById('overlay-clear').classList.add('on');
+}
+
+// ────────────────────────────────────────────────
+// Timer
+// ────────────────────────────────────────────────
+function startTimer(){
+  stopTimer();
+  timeLeft = TIME_LIMIT;
+  updateTimerUI();
+  timerInterval = setInterval(()=>{
+    timeLeft -= 0.1;
+    if(timeLeft <= 0){
+      timeLeft = 0;
+      stopTimer();
+      combo = 0;
+      updateComboUI();
+      showResult(false, 0, '—', '—');
+    }
+    updateTimerUI();
+  }, 100);
+}
+
+function stopTimer(){ clearInterval(timerInterval); timerInterval = null; }
+
+function updateTimerUI(){
+  const pct = (timeLeft/TIME_LIMIT)*100;
+  const bar = document.getElementById('timer-bar');
+  bar.style.width = pct+'%';
+  bar.style.background = pct > 50 ? '#34d399' : pct > 25 ? '#fbbf24' : '#fb7185';
+}
+
+function updateComboUI(){
+  const badge = document.getElementById('combo-badge');
+  if(combo >= 2){ badge.classList.add('on'); badge.textContent = `x${combo} ${t('combo').toUpperCase()}`; }
+  else badge.classList.remove('on');
+}
+
+// ────────────────────────────────────────────────
+// Hint
+// ────────────────────────────────────────────────
+function showHint(){
+  hintUsed = true;
+  const hints = T[lang].hints[currentStage];
+  const h = hints[Math.floor(Math.random()*hints.length)];
+  showToast('💡 ' + h);
+}
+
+function showToast(msg, dur=2500){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), dur);
+}
+
+// ────────────────────────────────────────────────
+// Canvas drawing
+// ────────────────────────────────────────────────
+function drawCanvas(stage){
+  const cv = document.getElementById('gc');
+  const w = cv.parentElement;
+  const dpr = window.devicePixelRatio||1;
+  const W = w.clientWidth, H = w.clientHeight;
+  if(W===0||H===0) return;
+  cv.width=W*dpr; cv.height=H*dpr;
+  cv.style.width=W+'px'; cv.style.height=H+'px';
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.fillStyle='#0d1117'; ctx.fillRect(0,0,W,H);
+
+  if(stage===0) drawAR(ctx,W,H);
+  else if(stage===1) drawGE(ctx,W,H);
+  else if(stage===2) drawVE(ctx,W,H);
+  else drawDE(ctx,W,H);
+}
+
+function V(id){ return parseFloat(currentVars[id])||0; }
+
+function drawAR(ctx,W,H){
+  const a1=V('ar_a1'),d=V('ar_d'),n=Math.round(V('ar_n'));
+  const terms=Array.from({length:n},(_,i)=>a1+i*d);
+  const an=terms[n-1],Sn=n*(a1+an)/2,avg=Sn/n;
+  const maxV=Math.max(...terms,0)+1,minV=Math.min(...terms,0)-1,range=maxV-minV||1;
+  const ml=44,mr=12,mt=16,mb=24,cw=W-ml-mr,ch=H-mt-mb,sc=ch/range;
+  const y0=mt+(maxV/range)*ch;
+  const bw=cw/n*0.62,bg=cw/n;
+
+  ctx.strokeStyle='#2d3a4a';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(ml,y0);ctx.lineTo(W-mr,y0);ctx.stroke();
+
+  terms.forEach((v,i)=>{
+    const x=ml+i*bg+(bg-bw)/2,bh=Math.abs(v)*sc,yb=v>=0?y0-bh:y0;
+    ctx.fillStyle='#fb718518';ctx.fillRect(x,yb,bw,bh);
+    ctx.strokeStyle='#fb7185';ctx.lineWidth=2;ctx.strokeRect(x,yb,bw,bh);
+    ctx.fillStyle='#e2e8f0';ctx.font='bold 10px monospace';ctx.textAlign='center';
+    ctx.fillText(v.toFixed(0),x+bw/2,v>=0?yb-4:yb+bh+12);
+  });
+
+  const avgY=y0-avg*sc;
+  ctx.strokeStyle='#22d3ee';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
+  ctx.beginPath();ctx.moveTo(ml,avgY);ctx.lineTo(W-mr,avgY);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#22d3ee';ctx.font='10px monospace';ctx.textAlign='right';
+  ctx.fillText('Σ='+Sn.toFixed(0),W-mr,avgY-4);
+}
+
+function drawGE(ctx,W,H){
+  const a1=V('ge_a1'),r=V('ge_r'),n=Math.round(V('ge_n'));
+  const terms=Array.from({length:n},(_,i)=>a1*Math.pow(r,i));
+  const maxV=Math.max(...terms,0.1)||1;
+  const ml=52,mr=12,mt=16,mb=24,cw=W-ml-mr,ch=H-mt-mb,sc=ch*0.85/maxV;
+  const y0=mt+ch*0.9;
+  const bw=cw/n*0.62,bg=cw/n;
+
+  ctx.strokeStyle='#2d3a4a';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(ml,y0);ctx.lineTo(W-mr,y0);ctx.stroke();
+
+  terms.forEach((v,i)=>{
+    const x=ml+i*bg+(bg-bw)/2,bh=Math.min(v,maxV)*sc,yb=y0-bh;
+    const hue=20+(i/n)*55;
+    ctx.fillStyle=`hsla(${hue},85%,62%,0.18)`;ctx.fillRect(x,yb,bw,bh);
+    ctx.strokeStyle=`hsl(${hue},85%,62%)`;ctx.lineWidth=2;ctx.strokeRect(x,yb,bw,bh);
+    const disp=v>=1000?(v/1000).toFixed(1)+'k':v.toFixed(1);
+    ctx.fillStyle='#e2e8f0';ctx.font='bold 10px monospace';ctx.textAlign='center';
+    ctx.fillText(disp,x+bw/2,yb-4);
+  });
+}
+
+function drawVE(ctx,W,H){
+  const ax=V('ve_ax'),ay=V('ve_ay'),bx=V('ve_bx'),by=V('ve_by');
+  const cx2=W/2,cy2=H*0.52,sc=Math.min(W,H)*0.072,R=7;
+  const S=(x,y)=>({sx:cx2+x*sc,sy:cy2-y*sc});
+
+  ctx.strokeStyle='#182030';ctx.lineWidth=1;
+  for(let i=-R;i<=R;i++){
+    const{sx,sy}=S(i,-R),{sy:e}=S(i,R);ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(sx,e);ctx.stroke();
+    const{sx:sx2,sy:sy2}=S(-R,i),{sx:e2}=S(R,i);ctx.beginPath();ctx.moveTo(sx2,sy2);ctx.lineTo(e2,sy2);ctx.stroke();
+  }
+  ctx.strokeStyle='#2d3a4a';ctx.lineWidth=1.5;
+  const{sx:al,sy:aY}=S(-R,0),{sx:ar}=S(R,0);ctx.beginPath();ctx.moveTo(al,aY);ctx.lineTo(ar,aY);ctx.stroke();
+  const{sx:at2,sy:atY}=S(0,R),{sy:abY}=S(0,-R);ctx.beginPath();ctx.moveTo(at2,atY);ctx.lineTo(at2,abY);ctx.stroke();
+
+  function arrow(x1,y1,x2,y2,col,w){
+    const a=Math.atan2(y2-y1,x2-x1),L=10;
+    ctx.strokeStyle=col;ctx.lineWidth=w||2.5;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+    ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-L*Math.cos(a-.44),y2-L*Math.sin(a-.44));
+    ctx.lineTo(x2-L*Math.cos(a+.44),y2-L*Math.sin(a+.44));
+    ctx.closePath();ctx.fill();
+  }
+  const{sx:asx,sy:asy}=S(ax,ay),{sx:bsx,sy:bsy}=S(bx,by);
+  arrow(cx2,cy2,bsx,bsy,'#fbbf24');
+  ctx.fillStyle='#fbbf24';ctx.font='bold 12px monospace';ctx.textAlign='left';ctx.fillText('b⃗',bsx+8,bsy-4);
+  arrow(cx2,cy2,asx,asy,'#22d3ee');
+  ctx.fillStyle='#22d3ee';ctx.fillText('a⃗',asx+8,asy-4);
+
+  const dot=ax*bx+ay*by;
+  ctx.fillStyle='#a78bfa';ctx.font='bold 12px monospace';ctx.textAlign='center';
+  ctx.fillText('a·b = '+dot.toFixed(1),W/2,H-8);
+  if(Math.abs(dot)<0.3){ctx.fillStyle='#34d399';ctx.fillText('⊥ 直交！',W/2,H-24);}
+}
+
+function drawDE(ctx,W,H){
+  const x0=V('de_x0'),h=V('de_h'),fi=Math.round(V('de_fn'));
+  const Fs=[x=>x*x,x=>x*x*x,x=>Math.sin(x)];
+  const Ds=[x=>2*x,x=>3*x*x,x=>Math.cos(x)];
+  const Ys=[[-3,14],[-22,22],[-1.8,1.8]];
+  const F=Fs[fi],dF=Ds[fi],yr=Ys[fi];
+  const m=32;
+  const cw=W-2*m,ch=H-2*m;
+  function S(x,y){return{sx:m+(x+4)/8*cw,sy:m+(1-(y-yr[0])/(yr[1]-yr[0]))*ch};}
+
+  ctx.strokeStyle='#182030';ctx.lineWidth=1;
+  for(let x=-3;x<=4;x++){const{sx,sy}=S(x,yr[0]),{sy:e}=S(x,yr[1]);ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(sx,e);ctx.stroke();}
+  ctx.strokeStyle='#2d3a4a';ctx.lineWidth=1.5;
+  const{sx:al,sy:aY}=S(-4,0),{sx:ar}=S(4,0);ctx.beginPath();ctx.moveTo(al,aY);ctx.lineTo(ar,aY);ctx.stroke();
+  const{sx:at2,sy:atY}=S(0,yr[1]),{sy:abY}=S(0,yr[0]);ctx.beginPath();ctx.moveTo(at2,atY);ctx.lineTo(at2,abY);ctx.stroke();
+
+  ctx.strokeStyle='#c8d0dc';ctx.lineWidth=2;ctx.beginPath();let first=true;
+  for(let x=-4;x<=4;x+=0.05){
+    const y=F(x);if(y<yr[0]-1||y>yr[1]+1){first=true;continue;}
+    const{sx,sy}=S(x,y);if(first){ctx.moveTo(sx,sy);first=false;}else ctx.lineTo(sx,sy);
+  }
+  ctx.stroke();
+
+  const yP=F(x0),slope=(F(x0+h)-yP)/h,tSlope=dF(x0);
+  const{sx:psx,sy:psy}=S(x0,yP);
+  ctx.fillStyle='#22d3ee';ctx.beginPath();ctx.arc(psx,psy,5,0,Math.PI*2);ctx.fill();
+
+  const sCol=h>0.8?'#f87171':h>0.2?'#fbbf24':'#34d399';
+  const eL=4;
+  const{sx:s1,sy:ss1}=S(x0-eL,yP-slope*eL),{sx:s2,sy:ss2}=S(x0+eL,yP+slope*eL);
+  ctx.save();ctx.beginPath();ctx.rect(m,m,cw,ch);ctx.clip();
+  ctx.strokeStyle=sCol;ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(s1,ss1);ctx.lineTo(s2,ss2);ctx.stroke();
+  ctx.strokeStyle='#a78bfa';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+  const{sx:t1,sy:ts1}=S(x0-eL,yP-tSlope*eL),{sx:t2,sy:ts2}=S(x0+eL,yP+tSlope*eL);
+  ctx.beginPath();ctx.moveTo(t1,ts1);ctx.lineTo(t2,ts2);ctx.stroke();
+  ctx.setLineDash([]);ctx.restore();
+
+  ctx.fillStyle=sCol;ctx.font='11px monospace';ctx.textAlign='left';
+  ctx.fillText('割線: '+slope.toFixed(3),8,H-18);
+  ctx.fillStyle='#a78bfa';ctx.fillText("f'(x₀)="+tSlope.toFixed(3),8,H-4);
+}
+
+// ────────────────────────────────────────────────
+// Resize
+// ────────────────────────────────────────────────
+let rt;
+window.addEventListener('resize',()=>{
+  clearTimeout(rt);rt=setTimeout(()=>drawCanvas(currentStage),80);
+});
+
+// ────────────────────────────────────────────────
+// Init
+// ────────────────────────────────────────────────
+renderStageSelect();
+</script>
+</body>
+</html>
