@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>JobLenz — 業種マップ &amp; 企業比較</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0c10;
+  --bg2:#13151a;
+  --bg3:#1b1e26;
+  --line:#262a33;
+  --ink:#eef0f4;
+  --ink2:#9aa0ad;
+  --ink3:#5c6270;
+  --accent:#7c5cff;
+  --accent2:#33e0c1;
+  --accent3:#ff5c7c;
+  --warn:#ffb84d;
+  --r:12px;
+  --shadow:0 8px 32px rgba(0,0,0,.4);
+}
+html,body{
+  background:var(--bg);color:var(--ink);
+  font-family:'Noto Sans JP',sans-serif;min-height:100vh;
+}
+.font-d{font-family:'Syne',sans-serif}
+
+/* ── HEADER ── */
+header{
+  display:flex;align-items:center;gap:16px;padding:18px 28px;
+  border-bottom:1px solid var(--line);position:sticky;top:0;
+  background:rgba(11,12,16,.85);backdrop-filter:blur(10px);z-index:50;
+}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:20px;letter-spacing:-.5px;display:flex;align-items:center;gap:8px}
+.logo-dot{width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 12px var(--accent)}
+.logo small{font-weight:400;font-size:11px;color:var(--ink3);margin-left:6px;letter-spacing:.5px}
+.nav{display:flex;gap:6px;margin-left:24px}
+.nav-btn{
+  padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;color:var(--ink2);
+  cursor:pointer;border:1px solid transparent;transition:all .15s;
+}
+.nav-btn:hover{color:var(--ink);background:var(--bg3)}
+.nav-btn.on{color:var(--ink);background:var(--bg3);border-color:var(--line)}
+.crumb{margin-left:auto;font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:6px}
+.crumb b{color:var(--accent2);font-weight:700}
+
+main{max-width:1280px;margin:0 auto;padding:28px}
+
+/* ── VIEW: INDUSTRY MAP ── */
+.view{display:none}
+.view.on{display:block}
+
+.section-title{
+  font-family:'Syne',sans-serif;font-weight:800;font-size:22px;margin-bottom:4px;letter-spacing:-.3px;
+}
+.section-sub{color:var(--ink3);font-size:13px;margin-bottom:22px}
+
+.treemap{
+  display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:90px;gap:8px;margin-bottom:32px;
+}
+.tcell{
+  border-radius:var(--r);padding:12px 14px;cursor:pointer;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;justify-content:space-between;
+  transition:transform .15s,box-shadow .15s;border:1px solid rgba(255,255,255,.06);
+}
+.tcell:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.tcell .t-name{font-weight:700;font-size:13px;color:#fff;z-index:1}
+.tcell .t-val{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:#fff;z-index:1}
+.tcell .t-sub{font-size:10px;color:rgba(255,255,255,.75);z-index:1}
+.tcell::after{
+  content:'';position:absolute;inset:0;background:radial-gradient(circle at 80% 0%,rgba(255,255,255,.15),transparent 60%);
+}
+
+.span2{grid-column:span 2}
+.span3{grid-column:span 3}
+.rowspan2{grid-row:span 2}
+
+/* legend */
+.map-legend{display:flex;gap:18px;margin-bottom:28px;font-size:11px;color:var(--ink3);align-items:center}
+.map-legend span{display:flex;align-items:center;gap:6px}
+.lg-sq{width:10px;height:10px;border-radius:3px}
+
+/* bubble */
+.panel{
+  background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:20px;
+}
+.grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;margin-bottom:24px}
+canvas{max-width:100%}
+
+/* ── VIEW: COMPANY COMPARE ── */
+.compare-bar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.chip{
+  display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--line);
+  border-radius:20px;padding:6px 12px 6px 6px;font-size:12px;
+}
+.chip .dot{width:8px;height:8px;border-radius:50%}
+.chip .x{cursor:pointer;color:var(--ink3);font-weight:700;margin-left:4px}
+.add-chip{
+  border:1px dashed var(--line);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--ink3);
+  cursor:pointer;
+}
+.add-chip:hover{border-color:var(--accent);color:var(--accent)}
+
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.card{
+  background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:18px;
+  position:relative;
+}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.card-name{font-weight:700;font-size:14px}
+.card-code{font-size:10px;color:var(--ink3)}
+.badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px}
+.badge.up{background:rgba(51,224,193,.15);color:var(--accent2)}
+.badge.flat{background:rgba(255,184,77,.15);color:var(--warn)}
+.metric-row{display:flex;justify-content:space-between;font-size:12px;color:var(--ink2);padding:5px 0;border-top:1px solid var(--line)}
+.metric-row b{color:var(--ink);font-family:'Syne',sans-serif}
+.job-link{
+  display:block;text-align:center;margin-top:12px;padding:9px;border-radius:8px;
+  background:linear-gradient(135deg,var(--accent),#5a3fd6);color:#fff;font-size:12px;font-weight:700;
+  text-decoration:none;
+}
+.job-link:hover{opacity:.88}
+
+footer{padding:30px;text-align:center;color:var(--ink3);font-size:11px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="logo-dot"></div>JobLenz<small>業種から、はじめるキャリア戦略</small></div>
+  <div class="nav">
+    <div class="nav-btn on" id="navMap" onclick="switchView('map')">業種マップ</div>
+    <div class="nav-btn" id="navCompare" onclick="switchView('compare')">企業比較</div>
+  </div>
+  <div class="crumb" id="crumb">業種マップ</div>
+</header>
+
+<main>
+
+  <!-- ============ VIEW 1: INDUSTRY MAP ============ -->
+  <div class="view on" id="view-map">
+    <div class="section-title">業種マップ</div>
+    <div class="section-sub">タイルの大きさ＝市場規模、色＝平均年収レンジ。クリックで企業比較へ。</div>
+
+    <div class="map-legend">
+      <span><div class="lg-sq" style="background:#33e0c1"></div>高年収帯（800万円〜）</span>
+      <span><div class="lg-sq" style="background:#7c5cff"></div>中年収帯（600〜800万円）</span>
+      <span><div class="lg-sq" style="background:#3d4250"></div>標準帯（〜600万円）</span>
+    </div>
+
+    <div class="treemap" id="treemap"></div>
+
+    <div class="grid2">
+      <div class="panel">
+        <div class="section-title" style="font-size:15px">年収 × 成長性マップ</div>
+        <canvas id="bubbleChart" height="280"></canvas>
+      </div>
+      <div class="panel">
+        <div class="section-title" style="font-size:15px">業種別 年収トレンド</div>
+        <canvas id="trendChart" height="280"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VIEW 2: COMPANY COMPARE ============ -->
+  <div class="view" id="view-compare">
+    <div class="section-title">企業比較</div>
+    <div class="section-sub">業種内の代表企業をレーダーチャートで比較し、求人へ直接アクセス。</div>
+
+    <div class="compare-bar" id="compareChips"></div>
+
+    <div class="grid2" style="grid-template-columns:1fr 1.4fr">
+      <div class="panel">
+        <div class="section-title" style="font-size:15px">4軸レーダー比較</div>
+        <canvas id="radarChart" height="320"></canvas>
+      </div>
+      <div class="cards" id="companyCards" style="grid-template-columns:1fr 1fr;margin-bottom:0"></div>
+    </div>
+  </div>
+
+</main>
+
+<footer>JobLenz Prototype — データはダミーです。実データはEDINET_DB連携バッチで更新予定。</footer>
+
+<script>
+// ============================================================
+// DUMMY DATA
+// ============================================================
+const INDUSTRIES = [
+  {id:'it',     name:'IT・通信',     size:6, avgIncome:780, growth:8.2,  color:'#33e0c1', span:'span2 rowspan2'},
+  {id:'finance', name:'金融',         size:4, avgIncome:820, growth:2.1,  color:'#33e0c1', span:'span2'},
+  {id:'pharma', name:'製薬',          size:3, avgIncome:760, growth:5.4,  color:'#33e0c1', span:''},
+  {id:'trading',name:'総合商社',      size:3, avgIncome:1100,growth:3.0,  color:'#33e0c1', span:''},
+  {id:'manuf',  name:'機械・製造',    size:5, avgIncome:680, growth:3.8,  color:'#7c5cff', span:'span2'},
+  {id:'auto',   name:'自動車',        size:4, avgIncome:700, growth:1.2,  color:'#7c5cff', span:''},
+  {id:'retail', name:'小売',          size:5, avgIncome:480, growth:1.5,  color:'#3d4250', span:'span2'},
+  {id:'food',   name:'食品',          size:3, avgIncome:520, growth:2.0,  color:'#3d4250', span:''},
+  {id:'construction', name:'建設',    size:4, avgIncome:610, growth:0.8,  color:'#3d4250', span:''},
+  {id:'media',  name:'メディア・広告',size:2, avgIncome:650, growth:-1.2, color:'#7c5cff', span:''},
+];
+
+const COMPANIES_BY_INDUSTRY = {
+  it: [
+    {name:'富士ソフト',  code:'9749', income:680, overseas:18, profit:8.5,  stability:70, growth:80, jobUrl:'#'},
+    {name:'サイバーエージェント', code:'4751', income:720, overseas:5,  profit:11.2, stability:60, growth:90, jobUrl:'#'},
+    {name:'NTTデータ',  code:'9613', income:810, overseas:32, profit:7.8,  stability:90, growth:60, jobUrl:'#'},
+  ],
+  finance: [
+    {name:'三菱UFJ',    code:'8306', income:850, overseas:40, profit:15.0, stability:95, growth:30, jobUrl:'#'},
+    {name:'オリックス',  code:'8591', income:790, overseas:25, profit:12.5, stability:80, growth:55, jobUrl:'#'},
+  ],
+  trading: [
+    {name:'三菱商事',    code:'8058', income:1450,overseas:60, profit:9.0,  stability:88, growth:40, jobUrl:'#'},
+    {name:'伊藤忠商事',  code:'8001', income:1380,overseas:55, profit:8.6,  stability:85, growth:45, jobUrl:'#'},
+  ],
+};
+let defaultIndustry = 'it';
+
+const TREND_LABELS = ['2021','2022','2023','2024','2025'];
+const TREND_DATA = {
+  'IT・通信':[650,690,720,750,780],
+  '総合商社':[920,1000,1050,1080,1100],
+  '小売':[440,450,460,470,480],
+  '製薬':[700,720,735,750,760],
+};
+
+// ============================================================
+// VIEW SWITCH
+// ============================================================
+function switchView(v){
+  document.getElementById('view-map').classList.toggle('on', v==='map');
+  document.getElementById('view-compare').classList.toggle('on', v==='compare');
+  document.getElementById('navMap').classList.toggle('on', v==='map');
+  document.getElementById('navCompare').classList.toggle('on', v==='compare');
+  document.getElementById('crumb').textContent = v==='map' ? '業種マップ' : `業種マップ ▸ ${INDUSTRIES.find(i=>i.id===defaultIndustry).name} ▸ 企業比較`;
+}
+
+// ============================================================
+// TREEMAP
+// ============================================================
+function renderTreemap(){
+  const wrap = document.getElementById('treemap');
+  wrap.innerHTML = INDUSTRIES.map(ind => `
+    <div class="tcell ${ind.span}" style="background:${ind.color}${ind.color==='#3d4250'?'':'cc'}"
+         onclick="openIndustry('${ind.id}')">
+      <div class="t-name">${ind.name}</div>
+      <div>
+        <div class="t-val">¥${ind.avgIncome}万</div>
+        <div class="t-sub">成長率 ${ind.growth>0?'+':''}${ind.growth}% / 年</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openIndustry(id){
+  defaultIndustry = id;
+  switchView('compare');
+  renderCompare();
+}
+
+// ============================================================
+// CHARTS (industry map view)
+// ============================================================
+Chart.defaults.color = '#9aa0ad';
+Chart.defaults.font.family = "'Noto Sans JP', sans-serif";
+
+new Chart(document.getElementById('bubbleChart'), {
+  type:'bubble',
+  data:{
+    datasets: INDUSTRIES.map(ind => ({
+      label: ind.name,
+      data:[{x:ind.growth, y:ind.avgIncome, r: ind.size*4}],
+      backgroundColor: ind.color + 'aa',
+      borderColor: ind.color,
+      borderWidth:1.5,
+    }))
+  },
+  options:{
+    plugins:{legend:{position:'bottom',labels:{boxWidth:8,font:{size:10}}}},
+    scales:{
+      x:{title:{display:true,text:'成長率（%/年）',color:'#5c6270'},grid:{color:'#1b1e26'}},
+      y:{title:{display:true,text:'平均年収（万円）',color:'#5c6270'},grid:{color:'#1b1e26'}},
+    }
+  }
+});
+
+new Chart(document.getElementById('trendChart'), {
+  type:'line',
+  data:{
+    labels: TREND_LABELS,
+    datasets: Object.entries(TREND_DATA).map(([name, data], i) => ({
+      label:name, data,
+      borderColor:['#33e0c1','#7c5cff','#3d4250','#ff5c7c'][i],
+      backgroundColor:'transparent',
+      tension:.35, borderWidth:2.5, pointRadius:3,
+    }))
+  },
+  options:{
+    plugins:{legend:{position:'bottom',labels:{boxWidth:8,font:{size:10}}}},
+    scales:{
+      x:{grid:{color:'#1b1e26'}},
+      y:{title:{display:true,text:'平均年収（万円）',color:'#5c6270'},grid:{color:'#1b1e26'}},
+    }
+  }
+});
+
+// ============================================================
+// COMPANY COMPARE VIEW
+// ============================================================
+let radarChart;
+function renderCompare(){
+  const list = COMPANIES_BY_INDUSTRY[defaultIndustry] || [];
+  const colors = ['#33e0c1','#7c5cff','#ff5c7c'];
+
+  // chips
+  document.getElementById('compareChips').innerHTML =
+    list.map((c,i)=>`<div class="chip"><div class="dot" style="background:${colors[i]}"></div>${c.name}<span class="x">×</span></div>`).join('')
+    + `<div class="add-chip">+ 企業を追加</div>`;
+
+  // radar
+  if (radarChart) radarChart.destroy();
+  radarChart = new Chart(document.getElementById('radarChart'), {
+    type:'radar',
+    data:{
+      labels:['年収水準','海外比率','利益率','安定性','成長性'],
+      datasets: list.map((c,i)=>({
+        label:c.name,
+        data:[norm(c.income,400,1500), c.overseas, norm(c.profit,0,20)*5, c.stability, c.growth],
+        borderColor:colors[i], backgroundColor:colors[i]+'33', borderWidth:2,
+      }))
+    },
+    options:{
+      plugins:{legend:{position:'bottom',labels:{boxWidth:8,font:{size:10}}}},
+      scales:{r:{grid:{color:'#1b1e26'},angleLines:{color:'#1b1e26'},pointLabels:{color:'#9aa0ad',font:{size:11}},ticks:{display:false}}}
+    }
+  });
+
+  // cards
+  document.getElementById('companyCards').innerHTML = list.map(c => `
+    <div class="card">
+      <div class="card-top">
+        <div><div class="card-name">${c.name}</div><div class="card-code">${c.code}</div></div>
+        <div class="badge ${c.growth>50?'up':'flat'}">${c.growth>50?'成長中':'安定'}</div>
+      </div>
+      <div class="metric-row"><span>平均年収</span><b>¥${c.income}万</b></div>
+      <div class="metric-row"><span>海外売上比率</span><b>${c.overseas}%</b></div>
+      <div class="metric-row"><span>利益率</span><b>${c.profit}%</b></div>
+      <a class="job-link" href="${c.jobUrl}">この企業の求人を見る ↗</a>
+    </div>
+  `).join('');
+}
+
+function norm(v,min,max){ return Math.round((v-min)/(max-min)*100); }
+
+// ============================================================
+// INIT
+// ============================================================
+renderTreemap();
+renderCompare();
+</script>
+</body>
+</html>
